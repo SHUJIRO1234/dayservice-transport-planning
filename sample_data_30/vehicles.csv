@@ -1,0 +1,6 @@
+vehicle_id,vehicle_name,capacity,wheelchair_capacity,driver_name
+V001,送迎車1号,8,2,佐藤 花子
+V002,送迎車2号,6,1,中村 次郎
+V003,送迎車3号,8,2,田中 三郎
+V004,送迎車4号,7,1,山田 美咲
+V005,送迎車5号,6,1,鈴木 健太

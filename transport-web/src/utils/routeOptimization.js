@@ -33,12 +33,12 @@ function toRad(degrees) {
 
 /**
  * 最近傍法を使用して送迎ルートを最適化
+ * デイサービスから出発 → 利用者を順次ピックアップ → デイサービスに戻る
  * @param {Object} facility - 事業所の座標 {lat, lng, name}
  * @param {Array} users - 利用者の配列 [{lat, lng, name, ...}, ...]
- * @param {string} direction - 'pickup' (送迎) または 'return' (帰宅)
  * @returns {Object} - {route: 座標の配列, totalDistance: 総距離, order: 訪問順序}
  */
-export function optimizeRoute(facility, users, direction = 'pickup') {
+export function optimizeRoute(facility, users) {
   if (!users || users.length === 0) {
     return {
       route: [],
@@ -48,18 +48,14 @@ export function optimizeRoute(facility, users, direction = 'pickup') {
     }
   }
 
-  // 送迎時は事業所から出発、帰宅時は事業所に到着
-  const startPoint = direction === 'pickup' ? facility : users[0]
   const unvisited = [...users]
   const visited = []
   const routeCoordinates = []
   let totalDistance = 0
-  let currentPoint = startPoint
+  let currentPoint = facility
 
-  // 送迎時は事業所から開始
-  if (direction === 'pickup') {
-    routeCoordinates.push([facility.lat, facility.lng])
-  }
+  // 事業所から開始
+  routeCoordinates.push([facility.lat, facility.lng])
 
   // 最近傍法：現在地から最も近い未訪問の利用者を次の訪問先とする
   while (unvisited.length > 0) {
@@ -84,12 +80,10 @@ export function optimizeRoute(facility, users, direction = 'pickup') {
     unvisited.splice(nearestIndex, 1)
   }
 
-  // 帰宅時は最後に事業所に戻る
-  if (direction === 'return') {
-    const returnDistance = calculateDistance(currentPoint, facility)
-    totalDistance += returnDistance
-    routeCoordinates.push([facility.lat, facility.lng])
-  }
+  // 最後に事業所に戻る
+  const returnDistance = calculateDistance(currentPoint, facility)
+  totalDistance += returnDistance
+  routeCoordinates.push([facility.lat, facility.lng])
 
   // 推定所要時間を計算（平均速度20km/h + 各停車地で3分）
   const averageSpeed = 20 // km/h
@@ -164,5 +158,58 @@ export function assignUsersToVehicles(users, vehicles) {
   }
 
   return assignments
+}
+
+
+
+/**
+ * 手動で並び替えられたルートの距離と時間を再計算
+ * @param {Object} facility - 事業所の座標 {lat, lng, name}
+ * @param {Array} orderedUsers - 並び替えられた利用者の配列
+ * @returns {Object} - {route: 座標の配列, totalDistance: 総距離, order: 訪問順序}
+ */
+export function recalculateRoute(facility, orderedUsers) {
+  if (!orderedUsers || orderedUsers.length === 0) {
+    return {
+      route: [],
+      totalDistance: 0,
+      order: [],
+      estimatedTime: 0
+    }
+  }
+
+  const routeCoordinates = []
+  let totalDistance = 0
+  let currentPoint = facility
+
+  // 事業所から開始
+  routeCoordinates.push([facility.lat, facility.lng])
+
+  // 指定された順序で訪問
+  for (const user of orderedUsers) {
+    const distance = calculateDistance(currentPoint, user)
+    totalDistance += distance
+    routeCoordinates.push([user.lat, user.lng])
+    currentPoint = user
+  }
+
+  // 最後に事業所に戻る
+  const returnDistance = calculateDistance(currentPoint, facility)
+  totalDistance += returnDistance
+  routeCoordinates.push([facility.lat, facility.lng])
+
+  // 推定所要時間を計算（平均速度20km/h + 各停車地で3分）
+  const averageSpeed = 20 // km/h
+  const stopTime = 3 // 分
+  const drivingTime = (totalDistance / averageSpeed) * 60 // 分
+  const totalStopTime = orderedUsers.length * stopTime
+  const estimatedTime = Math.ceil(drivingTime + totalStopTime)
+
+  return {
+    route: routeCoordinates,
+    totalDistance: Math.round(totalDistance * 100) / 100, // 小数点2桁
+    order: orderedUsers,
+    estimatedTime
+  }
 }
 
