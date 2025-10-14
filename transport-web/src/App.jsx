@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Calendar, MapPin, Users, Car, Accessibility, Clock } from 'lucide-react'
+import TransportMap from './components/TransportMap.jsx'
 import './App.css'
 
 function App() {
@@ -12,16 +13,17 @@ function App() {
   const [facility, setFacility] = useState(null)
   const [loading, setLoading] = useState(true)
   const [todaySchedules, setTodaySchedules] = useState([])
+  const [showMap, setShowMap] = useState(false)
 
   // CSVデータを読み込む（現時点では静的データ）
   useEffect(() => {
     // サンプルデータ（後でGoogleスプレッドシートから取得）
     const sampleUsers = [
-      { user_id: "U001", name: "山田 太郎", address: "東京都世田谷区桜新町1-2-3", phone: "03-1234-5678", wheelchair: false, notes: "" },
-      { user_id: "U002", name: "鈴木 花子", address: "東京都世田谷区桜新町1-5-8", phone: "03-1234-5679", wheelchair: true, notes: "車椅子対応必要" },
-      { user_id: "U003", name: "田中 一郎", address: "東京都世田谷区桜新町2-3-12", phone: "03-1234-5680", wheelchair: false, notes: "" },
-      { user_id: "U004", name: "高橋 美咲", address: "東京都世田谷区桜新町2-8-5", phone: "03-1234-5681", wheelchair: false, notes: "玄関まで介助必要" },
-      { user_id: "U005", name: "伊藤 健太", address: "東京都世田谷区桜新町3-1-9", phone: "03-1234-5682", wheelchair: true, notes: "車椅子対応必要" },
+      { user_id: "U001", name: "山田 太郎", address: "東京都世田谷区桜新田1-2-3", phone: "03-1234-5678", wheelchair: false, notes: "", lat: 35.6295, lng: 139.6470 },
+      { user_id: "U002", name: "鈴木 花子", address: "東京都世田谷区桜新田1-5-8", phone: "03-1234-5679", wheelchair: true, notes: "車椅子対応必要", lat: 35.6305, lng: 139.6465 },
+      { user_id: "U003", name: "田中 一郎", address: "東京都世田谷区桜新田2-3-12", phone: "03-1234-5680", wheelchair: false, notes: "", lat: 35.6280, lng: 139.6495 },
+      { user_id: "U004", name: "高橋 美咲", address: "東京都世田谷区桜新田2-8-5", phone: "03-1234-5681", wheelchair: false, notes: "玄関まで介助必要", lat: 35.6275, lng: 139.6505 },
+      { user_id: "U005", name: "伊藤 健太", address: "東京都世田谷区桜新田3-1-9", phone: "03-1234-5682", wheelchair: true, notes: "車椅子対応必要", lat: 35.6260, lng: 139.6520 },
     ]
 
     const today = new Date().toISOString().split('T')[0]
@@ -40,8 +42,10 @@ function App() {
 
     const sampleFacility = {
       facility_name: "デイサービスさくら",
-      address: "東京都世田谷区桜新町2-10-5",
-      phone: "03-9876-5432"
+      address: "東京都世田谷区桜新田2-10-5",
+      phone: "03-9876-5432",
+      lat: 35.6284,
+      lng: 139.6489
     }
 
     setUsers(sampleUsers)
@@ -238,12 +242,32 @@ function App() {
           </div>
         </div>
 
+        {/* 地図表示セクション */}
+        <div className="mt-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold text-gray-900">送迎ルート地図</h2>
+            <Button 
+              size="lg" 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8"
+              onClick={() => setShowMap(!showMap)}
+            >
+              <MapPin className="h-5 w-5 mr-2" />
+              {showMap ? '地図を閉じる' : '地図で表示'}
+            </Button>
+          </div>
+          
+          {showMap && (
+            <div className="animate-in fade-in duration-500">
+              <TransportMap 
+                facility={facility}
+                users={todaySchedules}
+              />
+            </div>
+          )}
+        </div>
+
         {/* アクションボタン（将来の機能用） */}
         <div className="mt-8 flex justify-center space-x-4">
-          <Button size="lg" className="bg-indigo-600 hover:bg-indigo-700 text-white px-8" disabled>
-            <MapPin className="h-5 w-5 mr-2" />
-            地図で表示（開発中）
-          </Button>
           <Button size="lg" variant="outline" className="px-8" disabled>
             ルート計算（開発中）
           </Button>
