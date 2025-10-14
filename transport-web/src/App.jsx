@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Calendar, MapPin, Users, Car, Accessibility, Clock } from 'lucide-react'
+import { Calendar, MapPin, Users, Car, Accessibility, Clock, Route, Navigation } from 'lucide-react'
 import TransportMap from './components/TransportMap.jsx'
+import { optimizeRoute, assignUsersToVehicles } from './utils/routeOptimization.js'
 import './App.css'
 
 function App() {
@@ -14,6 +15,8 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [todaySchedules, setTodaySchedules] = useState([])
   const [showMap, setShowMap] = useState(false)
+  const [optimizedRoute, setOptimizedRoute] = useState(null)
+  const [vehicleAssignments, setVehicleAssignments] = useState([])
 
   // CSVデータを読み込む（現時点では静的データ）
   useEffect(() => {
@@ -261,15 +264,145 @@ function App() {
               <TransportMap 
                 facility={facility}
                 users={todaySchedules}
+                route={optimizedRoute ? optimizedRoute.route : null}
               />
             </div>
           )}
         </div>
 
-        {/* アクションボタン（将来の機能用） */}
+        {/* ルート最適化セクション */}
+        {optimizedRoute && (
+          <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+              <Route className="h-6 w-6 mr-2 text-indigo-600" />
+              最適化された送迎ルート
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">総移動距離</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-indigo-600">
+                    {optimizedRoute.totalDistance} km
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">予想所要時間</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {optimizedRoute.estimatedTime} 分
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">訪問件数</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-purple-600">
+                    {optimizedRoute.order.length} 件
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                <Navigation className="h-5 w-5 mr-2 text-indigo-600" />
+                訪問順序
+              </h3>
+              <ol className="space-y-2">
+                <li className="flex items-center text-sm">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-600 font-semibold mr-3">
+                    0
+                  </span>
+                  <span className="font-medium">{facility.facility_name}</span>
+                  <span className="ml-2 text-gray-500">(出発)</span>
+                </li>
+                {optimizedRoute.order.map((user, index) => (
+                  <li key={index} className="flex items-center text-sm">
+                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 font-semibold mr-3">
+                      {index + 1}
+                    </span>
+                    <span className="font-medium">{user.name}</span>
+                    {user.wheelchair && (
+                      <Badge variant="outline" className="ml-2 text-xs">🧑‍🥼 車椅子</Badge>
+                    )}
+                    <span className="ml-auto text-gray-500">{user.address}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {/* 車両割り当て情報 */}
+        {vehicleAssignments.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">車両別割り当て</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {vehicleAssignments.map((assignment, index) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Car className="h-5 w-5 mr-2 text-indigo-600" />
+                      {assignment.vehicle.vehicle_name}
+                    </CardTitle>
+                    <CardDescription>
+                      担当: {assignment.vehicle.driver_name}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">一般:</span>
+                        <span className="font-medium">{assignment.regularCount}名 / {assignment.vehicle.capacity}名</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">車椅子:</span>
+                        <span className="font-medium">{assignment.wheelchairCount}名 / {assignment.vehicle.wheelchair_capacity}名</span>
+                      </div>
+                      <div className="mt-4 pt-4 border-t">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">利用者:</p>
+                        <ul className="space-y-1">
+                          {assignment.users.map((user, idx) => (
+                            <li key={idx} className="text-sm text-gray-600 flex items-center">
+                              <span className="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>
+                              {user.name}
+                              {user.wheelchair && <span className="ml-2 text-xs text-purple-600">(車椅子)</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* アクションボタン */}
         <div className="mt-8 flex justify-center space-x-4">
-          <Button size="lg" variant="outline" className="px-8" disabled>
-            ルート計算（開発中）
+          <Button 
+            size="lg" 
+            className="bg-green-600 hover:bg-green-700 text-white px-8"
+            onClick={() => {
+              const result = optimizeRoute(facility, todaySchedules, 'pickup')
+              setOptimizedRoute(result)
+              const assignments = assignUsersToVehicles(todaySchedules, vehicles)
+              setVehicleAssignments(assignments)
+            }}
+          >
+            <Route className="h-5 w-5 mr-2" />
+            ルートを最適化
           </Button>
         </div>
       </main>
