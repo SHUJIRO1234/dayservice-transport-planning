@@ -2,91 +2,185 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Calendar, MapPin, Users, Car, Accessibility, Clock, Route, Navigation, RefreshCw, Edit3 } from 'lucide-react'
+import { Calendar, MapPin, Users, Car, Accessibility, Clock, Route, Navigation, Plus } from 'lucide-react'
 import TransportMap from './components/TransportMap.jsx'
-import SortableRouteList from './components/SortableRouteList.jsx'
-import { optimizeRoute, recalculateRoute, assignUsersToVehicles } from './utils/routeOptimization.js'
-import { sampleUsers, sampleSchedules, sampleVehicles, sampleFacility } from './sampleData30.js'
+import VehicleTabs from './components/VehicleTabs.jsx'
+import TripManager from './components/TripManager.jsx'
+import { optimizeRoute, recalculateRoute } from './utils/routeOptimization.js'
+import { weeklyData, vehicles as vehiclesData, facility as facilityData } from './weeklyData.js'
 import './App.css'
 
 function App() {
-  const [users, setUsers] = useState([])
-  const [schedules, setSchedules] = useState([])
-  const [vehicles, setVehicles] = useState([])
-  const [facility, setFacility] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [todaySchedules, setTodaySchedules] = useState([])
+  const [selectedWeekday, setSelectedWeekday] = useState('月曜日')
+  const [selectedVehicle, setSelectedVehicle] = useState(1)
+  const [vehicles, setVehicles] = useState(vehiclesData)
+  const [facility, setFacility] = useState(facilityData)
   const [showMap, setShowMap] = useState(false)
-  const [optimizedRoute, setOptimizedRoute] = useState(null)
-  const [vehicleAssignments, setVehicleAssignments] = useState([])
-  const [isEditingRoute, setIsEditingRoute] = useState(false)
-  const [manualRoute, setManualRoute] = useState(null)
+  
+  // 車両ごとの割り当て（複数便対応）
+  // vehicleAssignments[vehicleId] = { trips: [[user1, user2, ...], [user3, user4, ...]] }
+  const [vehicleAssignments, setVehicleAssignments] = useState({})
+  
+  // 未割り当ての利用者リスト
+  const [unassignedUsers, setUnassignedUsers] = useState([])
 
-  // 30名のサンプルデータを読み込む
+  const weekdays = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日']
+
+  // 曜日が変わったら利用者をリセット
   useEffect(() => {
-    setUsers(sampleUsers)
-    setSchedules(sampleSchedules)
-    setVehicles(sampleVehicles)
-    setFacility(sampleFacility)
-
-    // 今日の送迎対象者を抽出
-    const today = new Date().toISOString().split('T')[0]
-    const todayList = sampleSchedules
-      .filter(schedule => schedule.date === today && schedule.status === "予定")
-      .map(schedule => {
-        const user = sampleUsers.find(u => u.user_id === schedule.user_id)
-        return { ...schedule, ...user }
-      })
+    const users = weeklyData[selectedWeekday] || []
+    setUnassignedUsers(users)
     
-    setTodaySchedules(todayList)
-    setLoading(false)
-  }, [])
+    // 車両割り当てをリセット
+    const initialAssignments = {}
+    vehicles.forEach(vehicle => {
+      initialAssignments[vehicle.id] = {
+        trips: [{ users: [], distance: 0, duration: 0 }] // 最初は1便のみ
+      }
+    })
+    setVehicleAssignments(initialAssignments)
+  }, [selectedWeekday])
 
-  // ルートを自動最適化
-  const handleOptimizeRoute = () => {
-    if (!facility || todaySchedules.length === 0) return
+  // 自動割り当て
+  const handleAutoAssign = () => {
+    if (unassignedUsers.length === 0) return
 
-    const result = optimizeRoute(facility, todaySchedules)
-    setOptimizedRoute(result)
-    setManualRoute(null)
-    setIsEditingRoute(false)
+    const newAssignments = { ...vehicleAssignments }
+    let wheelchairUsers = unassignedUsers.filter(u => u.wheelchair)
+    let regularUsers = unassignedUsers.filter(u => !u.wheelchair)
 
-    // 車両割り当て
-    const assignments = assignUsersToVehicles(result.order, vehicles)
-    setVehicleAssignments(assignments)
+    vehicles.forEach(vehicle => {
+      if (!newAssignments[vehicle.id]) {
+        newAssignments[vehicle.id] = { trips: [{ users: [], distance: 0, duration: 0 }] }
+      }
+
+      const currentTrip = newAssignments[vehicle.id].trips[0]
+      const users = Array.isArray(currentTrip) ? currentTrip : (currentTrip.users || [])
+      
+      // 配列形式の場合はオブジェクト形式に変換
+      if (Array.isArray(currentTrip)) {
+        newAssignments[vehicle.id].trips[0] = { users: currentTrip, distance: 0, duration: 0 }
+      }
+      
+      const tripUsers = newAssignments[vehicle.id].trips[0].users
+
+      // 車椅子ユーザーを割り当て（車椅子定員まで）
+      let wheelchairAssigned = 0
+      while (wheelchairUsers.length > 0 && wheelchairAssigned < vehicle.wheelchairCapacity) {
+        const user = wheelchairUsers.shift()
+        tripUsers.push(user)
+        wheelchairAssigned++
+      }
+
+      // 一般ユーザーを割り当て（総定員まで）
+      while (regularUsers.length > 0 && tripUsers.length < vehicle.capacity) {
+        const user = regularUsers.shift()
+        tripUsers.push(user)
+      }
+    })
+
+    // 残った利用者を未割り当てに設定
+    const remainingUsers = [...wheelchairUsers, ...regularUsers]
+    setVehicleAssignments(newAssignments)
+    setUnassignedUsers(remainingUsers)
   }
 
-  // 手動でルートを並び替え
-  const handleReorderRoute = (newOrder) => {
-    if (!facility) return
+  // ルートを最適化
+  const handleOptimizeVehicleRoute = (vehicleId) => {
+    const assignment = vehicleAssignments[vehicleId]
+    if (!assignment || !facility) return
 
-    const result = recalculateRoute(facility, newOrder)
-    setManualRoute(result)
-    setOptimizedRoute(result)
+    const newAssignments = { ...vehicleAssignments }
 
-    // 車両割り当てを更新
-    const assignments = assignUsersToVehicles(newOrder, vehicles)
-    setVehicleAssignments(assignments)
+    // 各便ごとにルートを最適化
+    newAssignments[vehicleId].trips = assignment.trips.map(trip => {
+      // tripが配列かオブジェクトかを判定
+      const users = Array.isArray(trip) ? trip : (trip.users || [])
+      
+      if (users.length === 0) return { users: [], distance: 0, duration: 0 }
+
+      const result = optimizeRoute(facility, users)
+      return {
+        users: result.order,
+        distance: result.totalDistance,
+        duration: result.estimatedTime
+      }
+    })
+
+    setVehicleAssignments(newAssignments)
   }
 
-  // 編集モードの切り替え
-  const toggleEditMode = () => {
-    setIsEditingRoute(!isEditingRoute)
+  // すべての車両のルートを最適化
+  const handleOptimizeAllRoutes = () => {
+    vehicles.forEach(vehicle => {
+      handleOptimizeVehicleRoute(vehicle.id)
+    })
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">読み込み中...</p>
-        </div>
-      </div>
-    )
+  // 便を追加
+  const handleAddTrip = (vehicleId) => {
+    const newAssignments = { ...vehicleAssignments }
+    if (!newAssignments[vehicleId]) {
+      newAssignments[vehicleId] = { trips: [] }
+    }
+    newAssignments[vehicleId].trips.push({ users: [], distance: 0, duration: 0 })
+    setVehicleAssignments(newAssignments)
   }
 
-  const wheelchairCount = todaySchedules.filter(s => s.wheelchair).length
-  const regularCount = todaySchedules.filter(s => !s.wheelchair).length
+  // 便を削除
+  const handleRemoveTrip = (vehicleId, tripIndex) => {
+    const newAssignments = { ...vehicleAssignments }
+    const removedTrip = newAssignments[vehicleId].trips[tripIndex]
+    const removedUsers = Array.isArray(removedTrip) ? removedTrip : (removedTrip.users || [])
+    newAssignments[vehicleId].trips.splice(tripIndex, 1)
+    
+    // 削除された利用者を未割り当てリストに戻す
+    setUnassignedUsers([...unassignedUsers, ...removedUsers])
+    setVehicleAssignments(newAssignments)
+  }
+
+  // 便内でユーザーを並び替え
+  const handleReorderUsers = (vehicleId, tripIndex, activeId, overId) => {
+    const newAssignments = { ...vehicleAssignments }
+    const trip = newAssignments[vehicleId].trips[tripIndex]
+    const users = Array.isArray(trip) ? trip : (trip.users || [])
+    
+    const oldIndex = users.findIndex(u => u.id === activeId)
+    const newIndex = users.findIndex(u => u.id === overId)
+    
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const [movedUser] = users.splice(oldIndex, 1)
+    users.splice(newIndex, 0, movedUser)
+
+    // オブジェクト形式の場合は更新し、距離・時間を再計算
+    if (!Array.isArray(trip)) {
+      trip.users = users
+      // 距離と時間を再計算
+      if (users.length > 0 && facility) {
+        const result = recalculateRoute(facility, users)
+        trip.distance = result.totalDistance
+        trip.duration = result.estimatedTime
+      }
+    }
+
+    setVehicleAssignments(newAssignments)
+  }
+
+  // 統計情報を計算
+  const currentUsers = weeklyData[selectedWeekday] || []
+  const wheelchairCount = currentUsers.filter(u => u.wheelchair).length
+  const regularCount = currentUsers.length - wheelchairCount
+
+  // 選択中の車両の情報
+  const selectedVehicleData = vehicles.find(v => v.id === selectedVehicle)
+  const selectedAssignment = vehicleAssignments[selectedVehicle] || { trips: [{ users: [], distance: 0, duration: 0 }] }
+
+  // 選択中の車両の統計
+  const selectedVehicleUsers = selectedAssignment.trips.flatMap(trip => 
+    Array.isArray(trip) ? trip : (trip.users || [])
+  )
+  const selectedVehicleWheelchair = selectedVehicleUsers.filter(u => u.wheelchair).length
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -99,350 +193,245 @@ function App() {
                 <Car className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">デイサービス送迎計画</h1>
-                <p className="text-sm text-gray-500 mt-1">{facility?.facility_name}</p>
+                <h1 className="text-2xl font-bold text-gray-900">デイサービス送迎計画</h1>
+                <p className="text-sm text-gray-600">デイサービスさくら</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 text-gray-600">
               <Calendar className="h-5 w-5" />
-              <span className="text-sm font-medium">{new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</span>
+              <span className="text-sm">{new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</span>
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* サマリーカード */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="hover:shadow-lg transition-shadow duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">本日の送迎対象者</CardTitle>
-              <Users className="h-5 w-5 text-indigo-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-indigo-600">{todaySchedules.length}</div>
-              <p className="text-xs text-gray-500 mt-1">名</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">車椅子対応</CardTitle>
-              <Accessibility className="h-5 w-5 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-purple-600">{wheelchairCount}</div>
-              <p className="text-xs text-gray-500 mt-1">名（一般: {regularCount}名）</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">利用可能車両</CardTitle>
-              <Car className="h-5 w-5 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-green-600">{vehicles.length}</div>
-              <p className="text-xs text-gray-500 mt-1">台</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* 本日の送迎対象者一覧 */}
-        <Card className="mb-8 shadow-lg">
+        {/* 曜日切り替えタブ */}
+        <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-6 w-6 text-indigo-600" />
-              本日の送迎対象者一覧
+              <Calendar className="w-5 h-5" />
+              曜日選択
             </CardTitle>
-            <CardDescription>{new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })} の送迎予定</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-              {todaySchedules.map((schedule, index) => (
-                <div key={schedule.user_id} className="bg-gradient-to-br from-white to-gray-50 rounded-lg p-4 border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm">
-                        {index + 1}
-                      </div>
-                      <h3 className="font-semibold text-gray-900">{schedule.name}</h3>
-                    </div>
-                    {schedule.wheelchair && (
-                      <Badge variant="secondary" className="bg-purple-100 text-purple-700 hover:bg-purple-200">
-                        <Accessibility className="h-3 w-3 mr-1" />
-                        車椅子
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <div className="flex items-start gap-2">
-                      <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                      <span>{schedule.address}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 flex-shrink-0" />
-                      <span>送迎: {schedule.pickup_time} / 帰宅: {schedule.return_time}</span>
-                    </div>
-                    {schedule.notes && (
-                      <p className="text-xs text-gray-500 mt-2 bg-yellow-50 p-2 rounded">{schedule.notes}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="flex gap-2 flex-wrap">
+              {weekdays.map(weekday => {
+                const dayUsers = weeklyData[weekday] || []
+                return (
+                  <button
+                    key={weekday}
+                    onClick={() => setSelectedWeekday(weekday)}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                      selectedWeekday === weekday
+                        ? 'bg-indigo-600 text-white shadow-lg'
+                        : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-indigo-300'
+                    }`}
+                  >
+                    {weekday}
+                    <span className="ml-2 text-xs">({dayUsers.length}名)</span>
+                  </button>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
 
-        {/* 地図表示セクション */}
-        <Card className="mb-8 shadow-lg">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-6 w-6 text-indigo-600" />
-                  送迎ルート地図
-                </CardTitle>
-                <CardDescription>利用者の位置と最適化されたルートを表示</CardDescription>
-              </div>
-              <Button onClick={() => setShowMap(!showMap)} variant="outline" className="hover:bg-indigo-50">
-                <Navigation className="h-4 w-4 mr-2" />
-                {showMap ? '地図を閉じる' : '地図で表示'}
-              </Button>
-            </div>
-          </CardHeader>
-          
-          {showMap && (
-            <CardContent className="animate-in fade-in duration-500">
-              <TransportMap 
+        {/* サマリー情報 */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                {selectedWeekday}の送迎対象者
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold">{currentUsers.length}</div>
+              <p className="text-sm text-blue-100 mt-1">名</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Accessibility className="h-4 w-4" />
+                車椅子対応
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold">{wheelchairCount}</div>
+              <p className="text-sm text-purple-100 mt-1">名（一般: {regularCount}名）</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Car className="h-4 w-4" />
+                利用可能車両
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold">{vehicles.length}</div>
+              <p className="text-sm text-green-100 mt-1">台</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                未割り当て
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold">{unassignedUsers.length}</div>
+              <p className="text-sm text-amber-100 mt-1">名</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* アクションボタン */}
+        <div className="flex gap-4 mb-6">
+          <Button onClick={handleAutoAssign} className="bg-indigo-600 hover:bg-indigo-700">
+            <Users className="w-4 h-4 mr-2" />
+            自動割り当て
+          </Button>
+          <Button onClick={handleOptimizeAllRoutes} className="bg-green-600 hover:bg-green-700">
+            <Route className="w-4 h-4 mr-2" />
+            全ルート最適化
+          </Button>
+          <Button onClick={() => setShowMap(!showMap)} variant="outline">
+            <MapPin className="w-4 h-4 mr-2" />
+            {showMap ? '地図を閉じる' : '地図で表示'}
+          </Button>
+        </div>
+
+        {/* 地図表示 */}
+        {showMap && (
+          <Card className="mb-6">
+            <CardContent className="p-0">
+              <TransportMap
                 facility={facility}
-                users={todaySchedules}
-                route={optimizedRoute ? optimizedRoute.route : null}
+                users={currentUsers}
+                route={null}
               />
             </CardContent>
-          )}
-        </Card>
+          </Card>
+        )}
 
-        {/* ルート最適化セクション */}
-        <Card className="mb-8 shadow-lg">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Route className="h-6 w-6 text-indigo-600" />
-                  送迎ルート最適化
-                </CardTitle>
-                <CardDescription>最適な巡回ルートを自動計算、または手動で調整</CardDescription>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleOptimizeRoute} className="bg-indigo-600 hover:bg-indigo-700">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  ルートを最適化
-                </Button>
-                {optimizedRoute && (
-                  <Button onClick={toggleEditMode} variant="outline" className="hover:bg-indigo-50">
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    {isEditingRoute ? '編集完了' : '手動で調整'}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-
-          {optimizedRoute && (
-            <CardContent className="animate-in fade-in duration-500">
-              {/* ルート統計情報 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-                  <div className="text-sm text-blue-700 font-medium mb-1">総移動距離</div>
-                  <div className="text-2xl font-bold text-blue-900">{optimizedRoute.totalDistance} km</div>
-                </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-                  <div className="text-sm text-green-700 font-medium mb-1">予想所要時間</div>
-                  <div className="text-2xl font-bold text-green-900">{optimizedRoute.estimatedTime} 分</div>
-                </div>
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
-                  <div className="text-sm text-purple-700 font-medium mb-1">訪問件数</div>
-                  <div className="text-2xl font-bold text-purple-900">{optimizedRoute.order.length} 件</div>
-                </div>
-              </div>
-
-              {/* 訪問順序 */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Navigation className="h-5 w-5 text-indigo-600" />
-                  訪問順序
-                  {isEditingRoute && (
-                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                      ドラッグして並び替え
-                    </Badge>
-                  )}
-                  {manualRoute && (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      手動調整済み
-                    </Badge>
-                  )}
-                </h3>
-                
-                {isEditingRoute ? (
-                  <SortableRouteList 
-                    users={optimizedRoute.order} 
-                    onReorder={handleReorderRoute}
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    {/* 出発地点 */}
-                    <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-500 text-white font-bold flex items-center justify-center text-sm">
-                        0
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{facility.facility_name}</div>
-                        <div className="text-xs text-gray-500 flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {facility.address}（出発）
-                        </div>
-                      </div>
+        {/* 未割り当て利用者リスト */}
+        {unassignedUsers.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                未割り当ての利用者（{unassignedUsers.length}名）
+              </CardTitle>
+              <CardDescription>
+                車両タブにドラッグ&ドロップで割り当ててください
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {unassignedUsers.map(user => (
+                  <div
+                    key={user.id}
+                    className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold">{user.name}</span>
+                      {user.wheelchair && (
+                        <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                          <Accessibility className="w-3 h-3 mr-1" />
+                          車椅子
+                        </Badge>
+                      )}
                     </div>
-
-                    {/* 訪問先 */}
-                    {optimizedRoute.order.map((user, index) => (
-                      <div key={user.user_id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm">
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900">{user.name}</span>
-                            {user.wheelchair && (
-                              <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                                <Accessibility className="h-3 w-3 mr-1" />
-                                車椅子
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                            <MapPin className="h-3 w-3" />
-                            <span className="truncate">{user.address}</span>
-                          </div>
-                        </div>
+                    <div className="text-xs text-gray-600">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {user.address}
                       </div>
-                    ))}
-
-                    {/* 帰着地点 */}
-                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white font-bold flex items-center justify-center text-sm">
-                        {optimizedRoute.order.length + 1}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{facility.facility_name}</div>
-                        <div className="text-xs text-gray-500 flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {facility.address}（帰着）
-                        </div>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Clock className="w-3 h-3" />
+                        {user.pickupTime}
                       </div>
                     </div>
                   </div>
-                )}
+                ))}
               </div>
-
-              {/* 車両別割り当て */}
-              {vehicleAssignments.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Car className="h-5 w-5 text-indigo-600" />
-                    車両別割り当て
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {vehicleAssignments.map((assignment) => (
-                      <Card key={assignment.vehicle.vehicle_id} className="border-2 border-indigo-100">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Car className="h-5 w-5 text-indigo-600" />
-                            {assignment.vehicle.vehicle_name}
-                          </CardTitle>
-                          <CardDescription>担当: {assignment.vehicle.driver_name}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex gap-4 mb-3 text-sm">
-                            <div>
-                              <span className="text-gray-600">一般: </span>
-                              <span className="font-semibold">{assignment.regularCount}/{assignment.vehicle.capacity}名</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-600">車椅子: </span>
-                              <span className="font-semibold">{assignment.wheelchairCount}/{assignment.vehicle.wheelchair_capacity}名</span>
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            {assignment.users.map((user) => (
-                              <div key={user.user_id} className="text-sm flex items-center gap-2 text-gray-700">
-                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
-                                <span>{user.name}</span>
-                                {user.wheelchair && (
-                                  <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
-                                    <Accessibility className="h-2.5 w-2.5 mr-0.5" />
-                                    車椅子
-                                  </Badge>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
             </CardContent>
-          )}
-        </Card>
+          </Card>
+        )}
 
-        {/* 利用可能車両 */}
-        <Card className="shadow-lg">
+        {/* 送迎車別タブ */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Car className="h-6 w-6 text-indigo-600" />
-              利用可能車両
+              <Car className="w-5 h-5" />
+              送迎車別管理
             </CardTitle>
-            <CardDescription>本日利用可能な送迎車両</CardDescription>
+            <CardDescription>
+              各送迎車に利用者を割り当て、ルートを最適化します
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {vehicles.map((vehicle) => (
-                <div key={vehicle.vehicle_id} className="bg-gradient-to-br from-white to-gray-50 rounded-lg p-4 border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Car className="h-5 w-5 text-indigo-600" />
-                    <h3 className="font-semibold text-gray-900">{vehicle.vehicle_name}</h3>
+            <VehicleTabs
+              vehicles={vehicles}
+              selectedVehicle={selectedVehicle}
+              onSelectVehicle={setSelectedVehicle}
+              vehicleAssignments={vehicleAssignments}
+            />
+
+            {/* 選択中の車両の詳細 */}
+            {selectedVehicleData && (
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">{selectedVehicleData.name}</h3>
+                    <p className="text-sm text-gray-600">
+                      担当: {selectedVehicleData.driver} / 
+                      定員: {selectedVehicleUsers.length}/{selectedVehicleData.capacity}名 / 
+                      車椅子: {selectedVehicleWheelchair}/{selectedVehicleData.wheelchairCapacity}台
+                    </p>
                   </div>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex justify-between">
-                      <span>担当:</span>
-                      <span className="font-medium">{vehicle.driver_name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>定員:</span>
-                      <span className="font-medium">{vehicle.capacity}名</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>車椅子:</span>
-                      <span className="font-medium">{vehicle.wheelchair_capacity}台</span>
-                    </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleOptimizeVehicleRoute(selectedVehicle)}
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <Route className="w-4 h-4 mr-2" />
+                      ルート最適化
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                <TripManager
+                  vehicle={selectedVehicleData}
+                  trips={selectedAssignment.trips.map((trip, index) => {
+                    if (Array.isArray(trip)) {
+                      return { users: trip, distance: 0, duration: 0 }
+                    }
+                    return {
+                      users: trip.users || [],
+                      distance: trip.distance || 0,
+                      duration: trip.duration || 0
+                    }
+                  })}
+                  onAddTrip={() => handleAddTrip(selectedVehicle)}
+                  onRemoveTrip={(tripIndex) => handleRemoveTrip(selectedVehicle, tripIndex)}
+                  onReorderUsers={(tripIndex, activeId, overId) => 
+                    handleReorderUsers(selectedVehicle, tripIndex, activeId, overId)
+                  }
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
-
-      {/* フッター */}
-      <footer className="bg-white border-t border-gray-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-sm text-gray-500">
-          <p>{facility?.facility_name} - 送迎運行管理システム v1.0</p>
-          <p className="mt-1">{facility?.address} / TEL: {facility?.phone}</p>
-        </div>
-      </footer>
     </div>
   )
 }
