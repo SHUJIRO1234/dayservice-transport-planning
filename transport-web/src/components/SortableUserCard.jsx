@@ -33,9 +33,11 @@ const SortableUserCard = ({ user, index }) => {
         <GripVertical className="w-5 h-5" />
       </div>
 
-      <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold">
-        {index + 1}
-      </div>
+      {index !== undefined && (
+        <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold">
+          {index + 1}
+        </div>
+      )}
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
