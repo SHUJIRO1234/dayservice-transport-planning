@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Calendar, MapPin, Users, Car, Accessibility, Clock, Route, Navigation } from 'lucide-react'
+import { Calendar, MapPin, Users, Car, Accessibility, Clock, Route, Navigation, RotateCcw, Trash2 } from 'lucide-react'
 import TransportMap from './components/TransportMap.jsx'
 import VehicleTabs from './components/VehicleTabs.jsx'
 import TripManager from './components/TripManager.jsx'
@@ -88,7 +88,39 @@ function App() {
     setUnassignedUsers(remainingUsers)
   }
 
-  // ルートを最適化
+  // 全リセット
+  const handleResetAll = () => {
+    const users = weeklyData[selectedWeekday] || []
+    setUnassignedUsers(users)
+    
+    const initialAssignments = {}
+    vehicles.forEach(vehicle => {
+      initialAssignments[vehicle.id] = {
+        trips: [{ users: [], distance: 0, duration: 0 }]
+      }
+    })
+    setVehicleAssignments(initialAssignments)
+  }
+
+  // 車両ごとのリセット
+  const handleResetVehicle = (vehicleId) => {
+    const assignment = vehicleAssignments[vehicleId]
+    if (!assignment) return
+
+    // 車両の全利用者を未割り当てに戻す
+    const allUsers = assignment.trips.flatMap(trip => trip.users)
+    setUnassignedUsers([...unassignedUsers, ...allUsers])
+
+    // 車両をリセット
+    setVehicleAssignments({
+      ...vehicleAssignments,
+      [vehicleId]: {
+        trips: [{ users: [], distance: 0, duration: 0 }]
+      }
+    })
+  }
+
+  // ルートを最適化（車両ごと）
   const handleOptimizeVehicleRoute = (vehicleId) => {
     const assignment = vehicleAssignments[vehicleId]
     if (!assignment || !facility) return
@@ -97,8 +129,9 @@ function App() {
 
     newAssignments[vehicleId].trips = assignment.trips.map(trip => {
       const users = trip.users || []
-      
-      if (users.length === 0) return { users: [], distance: 0, duration: 0 }
+      if (users.length === 0) {
+        return { users: [], distance: 0, duration: 0 }
+      }
 
       const result = optimizeRoute(users, facility)
       return {
@@ -111,18 +144,21 @@ function App() {
     setVehicleAssignments(newAssignments)
   }
 
-  // 全車両のルートを最適化
+  // 全ルート最適化
   const handleOptimizeAllRoutes = () => {
+    if (!facility) return
+
     const newAssignments = { ...vehicleAssignments }
 
-    vehicles.forEach(vehicle => {
-      const assignment = newAssignments[vehicle.id]
+    Object.keys(newAssignments).forEach(vehicleId => {
+      const assignment = newAssignments[vehicleId]
       if (!assignment) return
 
-      assignment.trips = assignment.trips.map(trip => {
+      newAssignments[vehicleId].trips = assignment.trips.map(trip => {
         const users = trip.users || []
-        
-        if (users.length === 0) return { users: [], distance: 0, duration: 0 }
+        if (users.length === 0) {
+          return { users: [], distance: 0, duration: 0 }
+        }
 
         const result = optimizeRoute(users, facility)
         return {
@@ -133,6 +169,47 @@ function App() {
       })
     })
 
+    setVehicleAssignments(newAssignments)
+  }
+
+  // 便を追加
+  const handleAddTrip = (vehicleId) => {
+    const newAssignments = { ...vehicleAssignments }
+    if (!newAssignments[vehicleId]) {
+      newAssignments[vehicleId] = { trips: [] }
+    }
+    newAssignments[vehicleId].trips.push({ users: [], distance: 0, duration: 0 })
+    setVehicleAssignments(newAssignments)
+  }
+
+  // 便を削除
+  const handleRemoveTrip = (vehicleId, tripIndex) => {
+    const newAssignments = { ...vehicleAssignments }
+    const trip = newAssignments[vehicleId].trips[tripIndex]
+    
+    // 便の利用者を未割り当てに戻す
+    if (trip && trip.users.length > 0) {
+      setUnassignedUsers([...unassignedUsers, ...trip.users])
+    }
+    
+    newAssignments[vehicleId].trips.splice(tripIndex, 1)
+    setVehicleAssignments(newAssignments)
+  }
+
+  // 便内でユーザーを並び替え
+  const handleReorderUsers = (vehicleId, tripIndex, oldIndex, newIndex) => {
+    const newAssignments = { ...vehicleAssignments }
+    const trip = newAssignments[vehicleId].trips[tripIndex]
+    
+    trip.users = arrayMove(trip.users, oldIndex, newIndex)
+    
+    // 距離と時間を再計算
+    if (trip.users.length > 0 && facility) {
+      const result = recalculateRoute(trip.users, facility)
+      trip.distance = result.distance
+      trip.duration = result.duration
+    }
+    
     setVehicleAssignments(newAssignments)
   }
 
@@ -151,229 +228,276 @@ function App() {
     const activeId = active.id
     const overId = over.id
 
-    // 未割り当てから送迎車へ
-    if (overId.toString().startsWith('vehicle-')) {
-      const vehicleId = parseInt(overId.replace('vehicle-', ''))
-      const user = unassignedUsers.find(u => u.id === activeId)
-      
-      if (user) {
-        // 未割り当てから削除
-        setUnassignedUsers(prev => prev.filter(u => u.id !== activeId))
-        
-        // 送迎車の第1便に追加
-        setVehicleAssignments(prev => {
-          const newAssignments = { ...prev }
-          if (!newAssignments[vehicleId]) {
-            newAssignments[vehicleId] = { trips: [{ users: [], distance: 0, duration: 0 }] }
+    // ドラッグ元を特定
+    let sourceType = null
+    let sourceVehicleId = null
+    let sourceTripIndex = null
+    let sourceUserIndex = null
+    let draggedUser = null
+
+    // 未割り当てから
+    if (unassignedUsers.find(u => u.id === activeId)) {
+      sourceType = 'unassigned'
+      draggedUser = unassignedUsers.find(u => u.id === activeId)
+    } else {
+      // 車両から
+      for (const [vehicleId, assignment] of Object.entries(vehicleAssignments)) {
+        for (let tripIndex = 0; tripIndex < assignment.trips.length; tripIndex++) {
+          const userIndex = assignment.trips[tripIndex].users.findIndex(u => u.id === activeId)
+          if (userIndex !== -1) {
+            sourceType = 'vehicle'
+            sourceVehicleId = parseInt(vehicleId)
+            sourceTripIndex = tripIndex
+            sourceUserIndex = userIndex
+            draggedUser = assignment.trips[tripIndex].users[userIndex]
+            break
           }
-          newAssignments[vehicleId].trips[0].users.push(user)
-          return newAssignments
-        })
+        }
+        if (draggedUser) break
       }
     }
-  }
 
-  // 便を追加
-  const handleAddTrip = (vehicleId) => {
-    setVehicleAssignments(prev => {
-      const newAssignments = { ...prev }
-      if (!newAssignments[vehicleId]) {
-        newAssignments[vehicleId] = { trips: [] }
+    if (!draggedUser) return
+
+    // ドロップ先を特定
+    let targetType = null
+    let targetVehicleId = null
+    let targetTripIndex = null
+
+    // 未割り当てへ
+    if (overId === 'unassigned') {
+      targetType = 'unassigned'
+    } else if (overId.toString().startsWith('vehicle-')) {
+      // 車両へ
+      targetType = 'vehicle'
+      targetVehicleId = parseInt(overId.replace('vehicle-', ''))
+      targetTripIndex = 0 // デフォルトで第1便
+    } else if (overId.toString().startsWith('trip-')) {
+      // 便へ
+      targetType = 'trip'
+      const parts = overId.split('-')
+      targetVehicleId = parseInt(parts[1])
+      targetTripIndex = parseInt(parts[2])
+    } else {
+      // 便内の利用者へ（順序入れ替え）
+      for (const [vehicleId, assignment] of Object.entries(vehicleAssignments)) {
+        for (let tripIndex = 0; tripIndex < assignment.trips.length; tripIndex++) {
+          const userIndex = assignment.trips[tripIndex].users.findIndex(u => u.id === overId)
+          if (userIndex !== -1) {
+            targetType = 'reorder'
+            targetVehicleId = parseInt(vehicleId)
+            targetTripIndex = tripIndex
+            break
+          }
+        }
+        if (targetType === 'reorder') break
       }
-      newAssignments[vehicleId].trips.push({ users: [], distance: 0, duration: 0 })
-      return newAssignments
-    })
-  }
+    }
 
-  // 便を削除
-  const handleDeleteTrip = (vehicleId, tripIndex) => {
-    setVehicleAssignments(prev => {
-      const newAssignments = { ...prev }
-      if (newAssignments[vehicleId] && newAssignments[vehicleId].trips.length > 1) {
-        // 削除される便の利用者を未割り当てに戻す
-        const deletedUsers = newAssignments[vehicleId].trips[tripIndex].users
-        setUnassignedUsers(prevUsers => [...prevUsers, ...deletedUsers])
-        
-        newAssignments[vehicleId].trips.splice(tripIndex, 1)
+    // 移動処理
+    const newAssignments = { ...vehicleAssignments }
+
+    // 元の場所から削除
+    if (sourceType === 'unassigned') {
+      setUnassignedUsers(unassignedUsers.filter(u => u.id !== activeId))
+    } else if (sourceType === 'vehicle') {
+      newAssignments[sourceVehicleId].trips[sourceTripIndex].users.splice(sourceUserIndex, 1)
+      
+      // 距離と時間を再計算
+      const trip = newAssignments[sourceVehicleId].trips[sourceTripIndex]
+      if (trip.users.length > 0 && facility) {
+        const result = recalculateRoute(trip.users, facility)
+        trip.distance = result.distance
+        trip.duration = result.duration
+      } else {
+        trip.distance = 0
+        trip.duration = 0
       }
-      return newAssignments
-    })
-  }
+    }
 
-  // 便内でユーザーを並び替え
-  const handleReorderUsers = (vehicleId, tripIndex, newOrder) => {
-    setVehicleAssignments(prev => {
-      const newAssignments = { ...prev }
-      if (newAssignments[vehicleId] && newAssignments[vehicleId].trips[tripIndex]) {
-        newAssignments[vehicleId].trips[tripIndex].users = newOrder
+    // 新しい場所に追加
+    if (targetType === 'unassigned') {
+      setUnassignedUsers([...unassignedUsers, draggedUser])
+    } else if (targetType === 'vehicle' || targetType === 'trip') {
+      if (!newAssignments[targetVehicleId]) {
+        newAssignments[targetVehicleId] = { trips: [{ users: [], distance: 0, duration: 0 }] }
+      }
+      newAssignments[targetVehicleId].trips[targetTripIndex].users.push(draggedUser)
+      
+      // 距離と時間を再計算
+      const trip = newAssignments[targetVehicleId].trips[targetTripIndex]
+      if (trip.users.length > 0 && facility) {
+        const result = recalculateRoute(trip.users, facility)
+        trip.distance = result.distance
+        trip.duration = result.duration
+      }
+    } else if (targetType === 'reorder') {
+      // 同じ便内での順序入れ替え
+      if (sourceVehicleId === targetVehicleId && sourceTripIndex === targetTripIndex) {
+        const trip = newAssignments[targetVehicleId].trips[targetTripIndex]
+        const overIndex = trip.users.findIndex(u => u.id === overId)
+        trip.users = arrayMove(trip.users, sourceUserIndex, overIndex)
         
         // 距離と時間を再計算
-        if (newOrder.length > 0 && facility) {
-          const result = recalculateRoute(newOrder, facility)
-          newAssignments[vehicleId].trips[tripIndex].distance = result.distance
-          newAssignments[vehicleId].trips[tripIndex].duration = result.duration
+        if (trip.users.length > 0 && facility) {
+          const result = recalculateRoute(trip.users, facility)
+          trip.distance = result.distance
+          trip.duration = result.duration
         }
       }
-      return newAssignments
-    })
+    }
+
+    setVehicleAssignments(newAssignments)
   }
 
-  // 選択中の曜日のデータ
-  const currentUsers = weeklyData[selectedWeekday] || []
-  const wheelchairCount = currentUsers.filter(u => u.wheelchair).length
+  // 統計情報を計算
+  const totalUsers = weeklyData[selectedWeekday]?.length || 0
+  const wheelchairUsers = weeklyData[selectedWeekday]?.filter(u => u.wheelchair).length || 0
+  const regularUsers = totalUsers - wheelchairUsers
 
   // 選択中の車両の統計
-  const selectedVehicleData = vehicles.find(v => v.id === selectedVehicle)
-  const selectedAssignment = vehicleAssignments[selectedVehicle] || { trips: [] }
-  
-  let totalUsers = 0
-  let totalWheelchair = 0
-  selectedAssignment.trips.forEach(trip => {
-    const users = trip.users || []
-    totalUsers += users.length
-    totalWheelchair += users.filter(u => u.wheelchair).length
-  })
+  const selectedVehicleAssignment = vehicleAssignments[selectedVehicle] || { trips: [] }
+  const selectedVehicleUsers = selectedVehicleAssignment.trips.flatMap(trip => trip.users)
+  const selectedVehicleWheelchair = selectedVehicleUsers.filter(u => u.wheelchair).length
+  const selectedVehicleRegular = selectedVehicleUsers.length - selectedVehicleWheelchair
 
-  // ドラッグ中のユーザー
-  const activeUser = activeId ? unassignedUsers.find(u => u.id === activeId) : null
+  // 地図用のデータ
+  const allAssignedUsers = Object.values(vehicleAssignments).flatMap(assignment =>
+    assignment.trips.flatMap(trip => trip.users)
+  )
 
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        {/* ヘッダー */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl shadow-lg">
-                  <Car className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">デイサービス送迎計画</h1>
-                  <p className="text-sm text-gray-500">デイサービスさくら</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <Calendar className="h-4 w-4" />
-                <span>{new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</span>
-              </div>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="container mx-auto p-4 md:p-6">
+          {/* ヘッダー */}
+          <div className="mb-6">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
+              デイサービス送迎計画 - 運行管理システム
+            </h1>
+            <p className="text-gray-600">効率的な送迎ルートの計画と管理</p>
           </div>
-        </header>
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-          {/* 曜日選択 */}
-          <Card>
+          {/* 曜日選択タブ */}
+          <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+                <Calendar className="w-5 h-5" />
                 曜日選択
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {weekdays.map((day, index) => {
-                  const dayUsers = weeklyData[day] || []
-                  return (
-                    <Button
-                      key={day}
-                      variant={selectedWeekday === day ? 'default' : 'outline'}
-                      onClick={() => setSelectedWeekday(day)}
-                      className="relative"
-                    >
-                      {day}
-                      <Badge variant="secondary" className="ml-2">{dayUsers.length}名</Badge>
-                    </Button>
-                  )
-                })}
+                {weekdays.map(day => (
+                  <Button
+                    key={day}
+                    onClick={() => setSelectedWeekday(day)}
+                    variant={selectedWeekday === day ? 'default' : 'outline'}
+                    className="flex-1 min-w-[100px]"
+                  >
+                    {day}
+                    <Badge variant="secondary" className="ml-2">
+                      {weeklyData[day]?.length || 0}名
+                    </Badge>
+                  </Button>
+                ))}
               </div>
             </CardContent>
           </Card>
 
-          {/* サマリーカード */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Users className="h-5 w-5" />
+          {/* サマリー情報 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-600">
                   {selectedWeekday}の送迎対象者
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold">{currentUsers.length}</div>
-                <p className="text-blue-100">名</p>
+                <div className="text-3xl font-bold text-blue-600">{totalUsers}名</div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Accessibility className="h-5 w-5" />
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                  <Accessibility className="w-4 h-4" />
                   車椅子対応
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold">{wheelchairCount}</div>
-                <p className="text-purple-100">名（一般: {currentUsers.length - wheelchairCount}名）</p>
+                <div className="text-3xl font-bold text-purple-600">
+                  {wheelchairUsers}名
+                  <span className="text-sm font-normal text-gray-500 ml-2">
+                    (一般: {regularUsers}名)
+                  </span>
+                </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Car className="h-5 w-5" />
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                  <Car className="w-4 h-4" />
                   利用可能車両
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold">{vehicles.length}</div>
-                <p className="text-green-100">台</p>
+                <div className="text-3xl font-bold text-green-600">{vehicles.length}台</div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Users className="h-5 w-5" />
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-600">
                   未割り当て
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold">{unassignedUsers.length}</div>
-                <p className="text-orange-100">名</p>
+                <div className="text-3xl font-bold text-orange-600">{unassignedUsers.length}名</div>
               </CardContent>
             </Card>
           </div>
 
           {/* アクションボタン */}
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={handleAutoAssign} className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600">
-              <Users className="mr-2 h-4 w-4" />
+          <div className="flex flex-wrap gap-3 mb-6">
+            <Button onClick={handleAutoAssign} className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
               自動割り当て
             </Button>
-            <Button onClick={handleOptimizeAllRoutes} className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600">
-              <Route className="mr-2 h-4 w-4" />
+            <Button onClick={handleOptimizeAllRoutes} variant="secondary" className="flex items-center gap-2">
+              <Route className="w-4 h-4" />
               全ルート最適化
             </Button>
-            <Button onClick={() => setShowMap(!showMap)} variant="outline">
-              <MapPin className="mr-2 h-4 w-4" />
-              地図で表示
+            <Button onClick={() => setShowMap(!showMap)} variant="outline" className="flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              {showMap ? '地図を隠す' : '地図で表示'}
+            </Button>
+            <Button onClick={handleResetAll} variant="destructive" className="flex items-center gap-2">
+              <RotateCcw className="w-4 h-4" />
+              全リセット
             </Button>
           </div>
 
           {/* 地図表示 */}
           {showMap && (
-            <Card>
-              <CardContent className="p-0">
-                <TransportMap 
-                  users={currentUsers} 
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Navigation className="w-5 h-5" />
+                  送迎ルート地図
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TransportMap
+                  users={allAssignedUsers}
                   facility={facility}
-                  optimizedRoute={null}
+                  optimizedRoute={[]}
                 />
               </CardContent>
             </Card>
@@ -383,99 +507,125 @@ function App() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* 左側: 未割り当て利用者リスト */}
             <div className="lg:col-span-1">
-              <Card className="sticky top-4">
+              <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    未割り当ての利用者（{unassignedUsers.length}名）
+                    <Users className="w-5 h-5" />
+                    未割り当ての利用者
+                    <Badge variant="secondary">{unassignedUsers.length}名</Badge>
                   </CardTitle>
                   <CardDescription>
-                    車両タブにドラッグ&ドロップで割り当ててください
+                    利用者を送迎車にドラッグ&ドロップして割り当てます
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="max-h-[600px] overflow-y-auto space-y-2">
-                  <SortableContext items={unassignedUsers.map(u => u.id)} strategy={verticalListSortingStrategy}>
-                    {unassignedUsers.map(user => (
-                      <SortableUserCard key={user.id} user={user} />
-                    ))}
-                  </SortableContext>
-                  {unassignedUsers.length === 0 && (
-                    <p className="text-center text-gray-500 py-8">
-                      すべての利用者が割り当てられました
-                    </p>
-                  )}
+                <CardContent>
+                  <div 
+                    id="unassigned"
+                    className="space-y-2 max-h-[600px] overflow-y-auto pr-2"
+                  >
+                    <SortableContext
+                      items={unassignedUsers.map(u => u.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {unassignedUsers.map((user) => (
+                        <SortableUserCard key={user.id} user={user} />
+                      ))}
+                    </SortableContext>
+                    {unassignedUsers.length === 0 && (
+                      <div className="text-center py-8 text-gray-400">
+                        すべての利用者が割り当てられました
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
             {/* 右側: 送迎車別管理 */}
             <div className="lg:col-span-2">
-              <Card>
+              <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Car className="h-5 w-5" />
+                    <Car className="w-5 h-5" />
                     送迎車別管理
                   </CardTitle>
                   <CardDescription>
-                    各送迎車に利用者を割り当て、ルートを最適化します
+                    送迎車を選択して利用者を管理します
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {/* 送迎車タブ */}
                   <VehicleTabs
                     vehicles={vehicles}
                     selectedVehicle={selectedVehicle}
-                    onSelectVehicle={setSelectedVehicle}
+                    setSelectedVehicle={setSelectedVehicle}
                     vehicleAssignments={vehicleAssignments}
                   />
 
                   {/* 選択中の送迎車の詳細 */}
-                  {selectedVehicleData && (
-                    <div className="mt-6 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-xl font-bold">送迎車{selectedVehicle}号</h3>
-                          <p className="text-sm text-gray-600">
-                            担当: {selectedVehicleData.driver} / 定員: {totalUsers}/{selectedVehicleData.capacity}名 / 車椅子: {totalWheelchair}/{selectedVehicleData.wheelchairCapacity}台
-                          </p>
+                  <div className="mt-6">
+                    {vehicles.find(v => v.id === selectedVehicle) && (
+                      <>
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="text-lg font-semibold">
+                              送迎車{selectedVehicle}号
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              担当: {vehicles.find(v => v.id === selectedVehicle).driver}
+                            </p>
+                            <div className="flex gap-4 mt-2">
+                              <Badge variant="outline">
+                                定員: {selectedVehicleRegular}/{vehicles.find(v => v.id === selectedVehicle).capacity}名
+                              </Badge>
+                              <Badge variant="outline">
+                                車椅子: {selectedVehicleWheelchair}/{vehicles.find(v => v.id === selectedVehicle).wheelchairCapacity}台
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleOptimizeVehicleRoute(selectedVehicle)}
+                              size="sm"
+                              variant="secondary"
+                            >
+                              <Route className="w-4 h-4 mr-2" />
+                              ルート最適化
+                            </Button>
+                            <Button
+                              onClick={() => handleResetVehicle(selectedVehicle)}
+                              size="sm"
+                              variant="destructive"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              リセット
+                            </Button>
+                          </div>
                         </div>
-                        <Button 
-                          onClick={() => handleOptimizeVehicleRoute(selectedVehicle)}
-                          className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                        >
-                          <Route className="mr-2 h-4 w-4" />
-                          ルート最適化
-                        </Button>
-                      </div>
 
-                      <TripManager
-                        vehicleId={selectedVehicle}
-                        trips={selectedAssignment.trips}
-                        onAddTrip={handleAddTrip}
-                        onDeleteTrip={handleDeleteTrip}
-                        onReorderUsers={handleReorderUsers}
-                      />
-                    </div>
-                  )}
+                        {/* 便管理 */}
+                        <TripManager
+                          vehicleId={selectedVehicle}
+                          trips={selectedVehicleAssignment.trips}
+                          facility={facility}
+                          onAddTrip={handleAddTrip}
+                          onRemoveTrip={handleRemoveTrip}
+                          onReorderUsers={handleReorderUsers}
+                        />
+                      </>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
           </div>
-        </main>
+        </div>
       </div>
 
-      {/* ドラッグオーバーレイ */}
       <DragOverlay>
-        {activeUser ? (
+        {activeId ? (
           <div className="bg-white p-4 rounded-lg shadow-lg border-2 border-blue-500">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">{activeUser.name}</span>
-              {activeUser.wheelchair && (
-                <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                  <Accessibility className="h-3 w-3 mr-1" />
-                  車椅子
-                </Badge>
-              )}
-            </div>
+            ドラッグ中...
           </div>
         ) : null}
       </DragOverlay>

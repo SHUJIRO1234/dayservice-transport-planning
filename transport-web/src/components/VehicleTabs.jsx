@@ -1,8 +1,7 @@
 import React from 'react';
-import { useDroppable } from '@dnd-kit/core';
 import { Truck, Users, Accessibility } from 'lucide-react';
 
-const VehicleTabs = ({ vehicles, selectedVehicle, onSelectVehicle, vehicleAssignments }) => {
+const VehicleTabs = ({ vehicles, selectedVehicle, setSelectedVehicle, vehicleAssignments }) => {
   return (
     <div className="flex gap-2 overflow-x-auto pb-2">
       {vehicles.map((vehicle) => {
@@ -22,7 +21,7 @@ const VehicleTabs = ({ vehicles, selectedVehicle, onSelectVehicle, vehicleAssign
             key={vehicle.id}
             vehicle={vehicle}
             isSelected={selectedVehicle === vehicle.id}
-            onSelect={() => onSelectVehicle(vehicle.id)}
+            onSelect={() => setSelectedVehicle(vehicle.id)}
             totalUsers={totalUsers}
             wheelchairUsers={wheelchairUsers}
           />
@@ -33,26 +32,19 @@ const VehicleTabs = ({ vehicles, selectedVehicle, onSelectVehicle, vehicleAssign
 };
 
 const VehicleTab = ({ vehicle, isSelected, onSelect, totalUsers, wheelchairUsers }) => {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `vehicle-${vehicle.id}`,
-  });
-
   return (
     <button
-      ref={setNodeRef}
       onClick={onSelect}
       className={`flex-shrink-0 px-4 py-3 rounded-lg border-2 transition-all ${
         isSelected
           ? 'border-blue-500 bg-blue-50'
-          : isOver
-          ? 'border-green-500 bg-green-50'
           : 'border-gray-200 bg-white hover:border-blue-300'
       }`}
     >
       <div className="flex items-center gap-2 mb-1">
-        <Truck className={`w-5 h-5 ${isSelected ? 'text-blue-600' : isOver ? 'text-green-600' : 'text-gray-600'}`} />
-        <span className={`font-semibold ${isSelected ? 'text-blue-900' : isOver ? 'text-green-900' : 'text-gray-900'}`}>
-          {vehicle.name}
+        <Truck className={`w-5 h-5 ${isSelected ? 'text-blue-600' : 'text-gray-600'}`} />
+        <span className={`font-semibold ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
+          送迎車{vehicle.id}号
         </span>
       </div>
       <div className="text-xs text-gray-600">
