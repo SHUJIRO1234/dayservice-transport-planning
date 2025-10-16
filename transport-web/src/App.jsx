@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
@@ -12,6 +12,25 @@ import SortableUserCard from './components/SortableUserCard.jsx'
 import { optimizeRoute, recalculateRoute } from './utils/routeOptimization.js'
 import { weeklyData, vehicles as vehiclesData, facility as facilityData } from './weeklyData.js'
 import './App.css'
+
+// 未割り当てリスト用のドロップゾーンコンポーネント
+const UnassignedDropZone = ({ children }) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: 'unassigned',
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`
+        space-y-2 max-h-[600px] overflow-y-auto pr-2 p-4 rounded-lg transition-all
+        ${isOver ? 'bg-blue-100 border-2 border-blue-500' : 'bg-gray-50 border-2 border-transparent'}
+      `}
+    >
+      {children}
+    </div>
+  );
+};
 
 function App() {
   const [selectedWeekday, setSelectedWeekday] = useState('月曜日')
@@ -519,10 +538,7 @@ function App() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div 
-                    id="unassigned"
-                    className="space-y-2 max-h-[600px] overflow-y-auto pr-2"
-                  >
+                  <UnassignedDropZone>
                     <SortableContext
                       items={unassignedUsers.map(u => u.id)}
                       strategy={verticalListSortingStrategy}
@@ -536,7 +552,7 @@ function App() {
                         すべての利用者が割り当てられました
                       </div>
                     )}
-                  </div>
+                  </UnassignedDropZone>
                 </CardContent>
               </Card>
             </div>
