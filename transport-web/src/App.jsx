@@ -87,7 +87,10 @@ function App() {
     let wheelchairUsers = unassignedUsers.filter(u => u.wheelchair)
     let regularUsers = unassignedUsers.filter(u => !u.wheelchair)
 
-    vehicles.forEach(vehicle => {
+    // 有効な車両のみを対象にする
+    const activeVehicles = vehicles.filter(v => v.isActive)
+
+    activeVehicles.forEach(vehicle => {
       if (!newAssignments[vehicle.id]) {
         newAssignments[vehicle.id] = { trips: [{ users: [], distance: 0, duration: 0 }] }
       }
@@ -168,6 +171,13 @@ function App() {
     })
 
     setVehicleAssignments(newAssignments)
+  }
+
+  // 車両の有効/無効切り替え
+  const handleToggleVehicle = (vehicleId) => {
+    setVehicles(vehicles.map(v => 
+      v.id === vehicleId ? { ...v, isActive: !v.isActive } : v
+    ))
   }
 
   // 全ルート最適化
@@ -589,6 +599,7 @@ function App() {
                     selectedVehicle={selectedVehicle}
                     setSelectedVehicle={setSelectedVehicle}
                     vehicleAssignments={vehicleAssignments}
+                    onToggleVehicle={handleToggleVehicle}
                   />
 
                   {/* 選択中の送迎車の詳細 */}

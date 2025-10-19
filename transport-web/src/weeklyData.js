@@ -1682,6 +1682,7 @@ export const vehicles = [
     driver: "佐藤 花子",
     capacity: 8,
     wheelchairCapacity: 2,
+    isActive: true,
   },
   {
     id: 2,
@@ -1689,6 +1690,7 @@ export const vehicles = [
     driver: "中村 次郎",
     capacity: 6,
     wheelchairCapacity: 1,
+    isActive: true,
   },
   {
     id: 3,
@@ -1696,6 +1698,7 @@ export const vehicles = [
     driver: "田中 三郎",
     capacity: 8,
     wheelchairCapacity: 2,
+    isActive: true,
   },
   {
     id: 4,
@@ -1703,6 +1706,7 @@ export const vehicles = [
     driver: "山田 美咲",
     capacity: 7,
     wheelchairCapacity: 1,
+    isActive: true,
   },
   {
     id: 5,
@@ -1710,5 +1714,6 @@ export const vehicles = [
     driver: "鈴木 健太",
     capacity: 6,
     wheelchairCapacity: 1,
+    isActive: true,
   },
 ];

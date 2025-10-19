@@ -69,7 +69,7 @@ const TripManager = ({
                   <SortableUserCard
                     key={user.id}
                     user={user}
-                    index={userIndex + 1}
+                    index={userIndex}
                   />
                 ))}
               </div>
