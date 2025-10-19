@@ -293,6 +293,9 @@ function App() {
     // 未割り当てへ
     if (overId === 'unassigned') {
       targetType = 'unassigned'
+    } else if (unassignedUsers.some(u => u.id === overId)) {
+      // 未割り当てリスト内のユーザーにドロップした場合も未割り当てとして扱う
+      targetType = 'unassigned'
     } else if (overId.toString().startsWith('vehicle-')) {
       // 車両へ
       targetType = 'vehicle'
