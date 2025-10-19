@@ -84,33 +84,56 @@ function App() {
     if (unassignedUsers.length === 0) return
 
     const newAssignments = { ...vehicleAssignments }
-    let wheelchairUsers = unassignedUsers.filter(u => u.wheelchair)
-    let regularUsers = unassignedUsers.filter(u => !u.wheelchair)
+    let wheelchairUsers = [...unassignedUsers.filter(u => u.wheelchair)]
+    let regularUsers = [...unassignedUsers.filter(u => !u.wheelchair)]
 
     // 有効な車両のみを対象にする
     const activeVehicles = vehicles.filter(v => v.isActive)
+    
+    if (activeVehicles.length === 0) {
+      alert('有効な車両がありません。車両を有効にしてください。')
+      return
+    }
 
+    // 各車両の便をリセット
     activeVehicles.forEach(vehicle => {
-      if (!newAssignments[vehicle.id]) {
-        newAssignments[vehicle.id] = { trips: [{ users: [], distance: 0, duration: 0 }] }
-      }
-
-      const tripUsers = newAssignments[vehicle.id].trips[0].users
-
-      // 車椅子ユーザーを割り当て
-      let wheelchairAssigned = 0
-      while (wheelchairUsers.length > 0 && wheelchairAssigned < vehicle.wheelchairCapacity) {
-        const user = wheelchairUsers.shift()
-        tripUsers.push(user)
-        wheelchairAssigned++
-      }
-
-      // 一般ユーザーを割り当て
-      while (regularUsers.length > 0 && tripUsers.length < vehicle.capacity) {
-        const user = regularUsers.shift()
-        tripUsers.push(user)
-      }
+      newAssignments[vehicle.id] = { trips: [] }
     })
+
+    // 必要な便数を計算
+    const totalCapacity = activeVehicles.reduce((sum, v) => sum + v.capacity, 0)
+    const totalUsers = wheelchairUsers.length + regularUsers.length
+    const tripsNeeded = Math.ceil(totalUsers / totalCapacity)
+
+    // 各車両に必要な便数分の便を作成
+    for (let tripIndex = 0; tripIndex < tripsNeeded; tripIndex++) {
+      activeVehicles.forEach(vehicle => {
+        if (!newAssignments[vehicle.id].trips[tripIndex]) {
+          newAssignments[vehicle.id].trips.push({ users: [], distance: 0, duration: 0 })
+        }
+
+        const tripUsers = newAssignments[vehicle.id].trips[tripIndex].users
+
+        // 車椅子ユーザーを割り当て
+        let wheelchairAssigned = 0
+        while (wheelchairUsers.length > 0 && wheelchairAssigned < vehicle.wheelchairCapacity) {
+          const user = wheelchairUsers.shift()
+          tripUsers.push(user)
+          wheelchairAssigned++
+        }
+
+        // 一般ユーザーを割り当て
+        while (regularUsers.length > 0 && tripUsers.length < vehicle.capacity) {
+          const user = regularUsers.shift()
+          tripUsers.push(user)
+        }
+      })
+
+      // すべての利用者が割り当てられたら終了
+      if (wheelchairUsers.length === 0 && regularUsers.length === 0) {
+        break
+      }
+    }
 
     const remainingUsers = [...wheelchairUsers, ...regularUsers]
     setVehicleAssignments(newAssignments)
