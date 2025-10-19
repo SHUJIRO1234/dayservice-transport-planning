@@ -152,11 +152,11 @@ function App() {
         return { users: [], distance: 0, duration: 0 }
       }
 
-      const result = optimizeRoute(users, facility)
+      const result = optimizeRoute(facility, users)
       return {
-        users: result.route,
-        distance: result.distance,
-        duration: result.duration
+        users: result.order,
+        distance: result.totalDistance,
+        duration: result.estimatedTime
       }
     })
 
@@ -179,11 +179,11 @@ function App() {
           return { users: [], distance: 0, duration: 0 }
         }
 
-        const result = optimizeRoute(users, facility)
+        const result = optimizeRoute(facility, users)
         return {
-          users: result.route,
-          distance: result.distance,
-          duration: result.duration
+          users: result.order,
+          distance: result.totalDistance,
+          duration: result.estimatedTime
         }
       })
     })
@@ -224,9 +224,9 @@ function App() {
     
     // 距離と時間を再計算
     if (trip.users.length > 0 && facility) {
-      const result = recalculateRoute(trip.users, facility)
-      trip.distance = result.distance
-      trip.duration = result.duration
+      const result = recalculateRoute(facility, trip.users)
+      trip.distance = result.totalDistance
+      trip.duration = result.estimatedTime
     }
     
     setVehicleAssignments(newAssignments)
@@ -318,16 +318,16 @@ function App() {
 
     // 元の場所から削除
     if (sourceType === 'unassigned') {
-      setUnassignedUsers(unassignedUsers.filter(u => u.id !== activeId))
+      setUnassignedUsers(prev => prev.filter(u => u.id !== activeId))
     } else if (sourceType === 'vehicle') {
       newAssignments[sourceVehicleId].trips[sourceTripIndex].users.splice(sourceUserIndex, 1)
       
       // 距離と時間を再計算
       const trip = newAssignments[sourceVehicleId].trips[sourceTripIndex]
       if (trip.users.length > 0 && facility) {
-        const result = recalculateRoute(trip.users, facility)
-        trip.distance = result.distance
-        trip.duration = result.duration
+        const result = recalculateRoute(facility, trip.users)
+        trip.distance = result.totalDistance
+        trip.duration = result.estimatedTime
       } else {
         trip.distance = 0
         trip.duration = 0
@@ -336,7 +336,7 @@ function App() {
 
     // 新しい場所に追加
     if (targetType === 'unassigned') {
-      setUnassignedUsers([...unassignedUsers, draggedUser])
+      setUnassignedUsers(prev => [...prev, draggedUser])
     } else if (targetType === 'vehicle' || targetType === 'trip') {
       if (!newAssignments[targetVehicleId]) {
         newAssignments[targetVehicleId] = { trips: [{ users: [], distance: 0, duration: 0 }] }
@@ -346,9 +346,9 @@ function App() {
       // 距離と時間を再計算
       const trip = newAssignments[targetVehicleId].trips[targetTripIndex]
       if (trip.users.length > 0 && facility) {
-        const result = recalculateRoute(trip.users, facility)
-        trip.distance = result.distance
-        trip.duration = result.duration
+        const result = recalculateRoute(facility, trip.users)
+        trip.distance = result.totalDistance
+        trip.duration = result.estimatedTime
       }
     } else if (targetType === 'reorder') {
       // 同じ便内での順序入れ替え
@@ -359,9 +359,9 @@ function App() {
         
         // 距離と時間を再計算
         if (trip.users.length > 0 && facility) {
-          const result = recalculateRoute(trip.users, facility)
-          trip.distance = result.distance
-          trip.duration = result.duration
+          const result = recalculateRoute(facility, trip.users)
+          trip.distance = result.totalDistance
+          trip.duration = result.estimatedTime
         }
       }
     }
@@ -523,9 +523,9 @@ function App() {
           )}
 
           {/* 2カラムレイアウト */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-3 gap-6">
             {/* 左側: 未割り当て利用者リスト */}
-            <div className="lg:col-span-1">
+            <div className="col-span-1">
               <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -558,7 +558,7 @@ function App() {
             </div>
 
             {/* 右側: 送迎車別管理 */}
-            <div className="lg:col-span-2">
+            <div className="col-span-2">
               <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

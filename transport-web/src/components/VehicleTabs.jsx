@@ -1,5 +1,6 @@
 import React from 'react';
 import { Truck, Users, Accessibility } from 'lucide-react';
+import { useDroppable } from '@dnd-kit/core';
 
 const VehicleTabs = ({ vehicles, selectedVehicle, setSelectedVehicle, vehicleAssignments }) => {
   return (
@@ -32,12 +33,19 @@ const VehicleTabs = ({ vehicles, selectedVehicle, setSelectedVehicle, vehicleAss
 };
 
 const VehicleTab = ({ vehicle, isSelected, onSelect, totalUsers, wheelchairUsers }) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `vehicle-${vehicle.id}`,
+  });
+
   return (
     <button
+      ref={setNodeRef}
       onClick={onSelect}
       className={`flex-shrink-0 px-4 py-3 rounded-lg border-2 transition-all ${
         isSelected
           ? 'border-blue-500 bg-blue-50'
+          : isOver
+          ? 'border-green-500 bg-green-50'
           : 'border-gray-200 bg-white hover:border-blue-300'
       }`}
     >
