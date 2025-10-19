@@ -23,13 +23,11 @@ const SortableUserCard = ({ user, index }) => {
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+      {...attributes}
+      {...listeners}
+      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors cursor-grab active:cursor-grabbing"
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
-      >
+      <div className="text-gray-400">
         <GripVertical className="w-5 h-5" />
       </div>
 

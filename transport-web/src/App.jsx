@@ -14,7 +14,7 @@ import { weeklyData, vehicles as vehiclesData, facility as facilityData } from '
 import './App.css'
 
 // 未割り当てリスト用のドロップゾーンコンポーネント
-const UnassignedDropZone = ({ children }) => {
+const UnassignedDropZone = ({ children, isDragging }) => {
   const { isOver, setNodeRef } = useDroppable({
     id: 'unassigned',
   });
@@ -24,9 +24,16 @@ const UnassignedDropZone = ({ children }) => {
       ref={setNodeRef}
       className={`
         space-y-2 max-h-[600px] overflow-y-auto pr-2 p-4 rounded-lg transition-all
-        ${isOver ? 'bg-blue-100 border-2 border-blue-500' : 'bg-gray-50 border-2 border-transparent'}
+        ${isOver ? 'bg-blue-100 border-2 border-blue-500 shadow-lg' : ''}
+        ${isDragging && !isOver ? 'bg-green-50 border-2 border-green-400 border-dashed' : ''}
+        ${!isDragging ? 'bg-gray-50 border-2 border-transparent' : ''}
       `}
     >
+      {isDragging && (
+        <div className="text-center text-green-600 font-semibold py-2 bg-green-100 rounded-lg mb-2">
+          ここにドロップして未割り当てに戻す
+        </div>
+      )}
       {children}
     </div>
   );
@@ -316,6 +323,23 @@ function App() {
     // 移動処理
     const newAssignments = { ...vehicleAssignments }
 
+    // 同じ便内での順序入れ替えの場合は特別処理
+    if (targetType === 'reorder' && sourceVehicleId === targetVehicleId && sourceTripIndex === targetTripIndex) {
+      const trip = newAssignments[targetVehicleId].trips[targetTripIndex]
+      const overIndex = trip.users.findIndex(u => u.id === overId)
+      trip.users = arrayMove(trip.users, sourceUserIndex, overIndex)
+      
+      // 距離と時間を再計算
+      if (trip.users.length > 0 && facility) {
+        const result = recalculateRoute(facility, trip.users)
+        trip.distance = result.totalDistance
+        trip.duration = result.estimatedTime
+      }
+      
+      setVehicleAssignments(newAssignments)
+      return
+    }
+
     // 元の場所から削除
     if (sourceType === 'unassigned') {
       setUnassignedUsers(prev => prev.filter(u => u.id !== activeId))
@@ -349,20 +373,6 @@ function App() {
         const result = recalculateRoute(facility, trip.users)
         trip.distance = result.totalDistance
         trip.duration = result.estimatedTime
-      }
-    } else if (targetType === 'reorder') {
-      // 同じ便内での順序入れ替え
-      if (sourceVehicleId === targetVehicleId && sourceTripIndex === targetTripIndex) {
-        const trip = newAssignments[targetVehicleId].trips[targetTripIndex]
-        const overIndex = trip.users.findIndex(u => u.id === overId)
-        trip.users = arrayMove(trip.users, sourceUserIndex, overIndex)
-        
-        // 距離と時間を再計算
-        if (trip.users.length > 0 && facility) {
-          const result = recalculateRoute(facility, trip.users)
-          trip.distance = result.totalDistance
-          trip.duration = result.estimatedTime
-        }
       }
     }
 
@@ -538,7 +548,7 @@ function App() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <UnassignedDropZone>
+                  <UnassignedDropZone isDragging={!!activeId}>
                     <SortableContext
                       items={unassignedUsers.map(u => u.id)}
                       strategy={verticalListSortingStrategy}
