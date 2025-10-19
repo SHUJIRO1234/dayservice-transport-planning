@@ -84,8 +84,9 @@ function App() {
     if (unassignedUsers.length === 0) return
 
     const newAssignments = { ...vehicleAssignments }
-    let wheelchairUsers = [...unassignedUsers.filter(u => u.wheelchair)]
-    let regularUsers = [...unassignedUsers.filter(u => !u.wheelchair)]
+    // 欠席者を除外して割り当て
+    let wheelchairUsers = [...unassignedUsers.filter(u => u.wheelchair && !u.isAbsent)]
+    let regularUsers = [...unassignedUsers.filter(u => !u.wheelchair && !u.isAbsent)]
 
     // 有効な車両のみを対象にする
     const activeVehicles = vehicles.filter(v => v.isActive)
@@ -135,7 +136,9 @@ function App() {
       }
     }
 
-    const remainingUsers = [...wheelchairUsers, ...regularUsers]
+    // 欠席者を含めた未割り当てリストを作成
+    const absentUsers = unassignedUsers.filter(u => u.isAbsent)
+    const remainingUsers = [...wheelchairUsers, ...regularUsers, ...absentUsers]
     setVehicleAssignments(newAssignments)
     setUnassignedUsers(remainingUsers)
   }
@@ -200,6 +203,13 @@ function App() {
   const handleToggleVehicle = (vehicleId) => {
     setVehicles(vehicles.map(v => 
       v.id === vehicleId ? { ...v, isActive: !v.isActive } : v
+    ))
+  }
+
+  // 欠席者のトグル
+  const handleToggleAbsent = (userId) => {
+    setUnassignedUsers(unassignedUsers.map(u => 
+      u.id === userId ? { ...u, isAbsent: !u.isAbsent } : u
     ))
   }
 
@@ -590,7 +600,12 @@ function App() {
                       strategy={verticalListSortingStrategy}
                     >
                       {unassignedUsers.map((user) => (
-                        <SortableUserCard key={user.id} user={user} />
+                        <SortableUserCard 
+                          key={user.id} 
+                          user={user} 
+                          showAbsentToggle={true}
+                          onToggleAbsent={handleToggleAbsent}
+                        />
                       ))}
                     </SortableContext>
                     {unassignedUsers.length === 0 && (

@@ -1,9 +1,9 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, MapPin, Clock, Accessibility } from 'lucide-react';
+import { GripVertical, MapPin, Clock, Accessibility, UserX } from 'lucide-react';
 
-const SortableUserCard = ({ user, index }) => {
+const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = false }) => {
   const {
     attributes,
     listeners,
@@ -19,14 +19,37 @@ const SortableUserCard = ({ user, index }) => {
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const handleAbsentToggle = (e) => {
+    e.stopPropagation();
+    if (onToggleAbsent) {
+      onToggleAbsent(user.id);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors cursor-grab active:cursor-grabbing"
+      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+        user.isAbsent
+          ? 'bg-gray-100 border-gray-300 opacity-60'
+          : 'bg-gray-50 border-gray-200 hover:border-blue-300 cursor-grab active:cursor-grabbing'
+      }`}
     >
+      {showAbsentToggle && (
+        <div className="flex-shrink-0" onClick={handleAbsentToggle}>
+          <input
+            type="checkbox"
+            checked={user.isAbsent || false}
+            onChange={handleAbsentToggle}
+            className="w-4 h-4 cursor-pointer"
+            title="欠席としてマーク"
+          />
+        </div>
+      )}
+
       <div className="text-gray-400">
         <GripVertical className="w-5 h-5" />
       </div>
@@ -39,7 +62,15 @@ const SortableUserCard = ({ user, index }) => {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-gray-900">{user.name}</span>
+          <span className={`font-semibold ${user.isAbsent ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+            {user.name}
+          </span>
+          {user.isAbsent && (
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs">
+              <UserX className="w-3 h-3" />
+              欠席
+            </span>
+          )}
           {user.wheelchair && (
             <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
               <Accessibility className="w-3 h-3" />
