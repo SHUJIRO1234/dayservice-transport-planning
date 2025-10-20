@@ -9,6 +9,7 @@ import TransportMap from './components/TransportMap.jsx'
 import VehicleTabs from './components/VehicleTabs.jsx'
 import TripManager from './components/TripManager.jsx'
 import SortableUserCard from './components/SortableUserCard.jsx'
+import DashboardView from './components/DashboardView.jsx'
 import { optimizeRoute, recalculateRoute } from './utils/routeOptimization.js'
 import { weeklyData, vehicles as vehiclesData, facility as facilityData } from './weeklyData.js'
 import './App.css'
@@ -46,6 +47,7 @@ function App() {
   const [facility, setFacility] = useState(facilityData)
   const [showMap, setShowMap] = useState(false)
   const [activeId, setActiveId] = useState(null)
+  const [viewMode, setViewMode] = useState('tab') // 'tab' or 'dashboard'
   
   // 車両ごとの割り当て（複数便対応）
   const [vehicleAssignments, setVehicleAssignments] = useState({})
@@ -101,10 +103,15 @@ function App() {
       newAssignments[vehicle.id] = { trips: [] }
     })
 
-    // 必要な便数を計算
+    // 必要な便数を計算（車椅子と一般を別々に計算）
     const totalCapacity = activeVehicles.reduce((sum, v) => sum + v.capacity, 0)
+    const totalWheelchairCapacity = activeVehicles.reduce((sum, v) => sum + v.wheelchairCapacity, 0)
     const totalUsers = wheelchairUsers.length + regularUsers.length
-    const tripsNeeded = Math.ceil(totalUsers / totalCapacity)
+    
+    // 車椅子利用者と一般利用者の必要便数を計算
+    const wheelchairTripsNeeded = Math.ceil(wheelchairUsers.length / totalWheelchairCapacity)
+    const regularTripsNeeded = Math.ceil(totalUsers / totalCapacity)
+    const tripsNeeded = Math.max(wheelchairTripsNeeded, regularTripsNeeded)
 
     // 各車両に必要な便数分の便を作成
     for (let tripIndex = 0; tripIndex < tripsNeeded; tripIndex++) {
@@ -541,6 +548,22 @@ function App() {
 
           {/* アクションボタン */}
           <div className="flex flex-wrap gap-3 mb-6">
+            <div className="flex gap-2 mr-4">
+              <Button 
+                onClick={() => setViewMode('tab')} 
+                variant={viewMode === 'tab' ? 'default' : 'outline'}
+                size="sm"
+              >
+                タブビュー
+              </Button>
+              <Button 
+                onClick={() => setViewMode('dashboard')} 
+                variant={viewMode === 'dashboard' ? 'default' : 'outline'}
+                size="sm"
+              >
+                全体ビュー
+              </Button>
+            </div>
             <Button onClick={handleAutoAssign} className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               自動割り当て
@@ -578,7 +601,17 @@ function App() {
             </Card>
           )}
 
-          {/* 2カラムレイアウト */}
+          {/* ビューモードに応じて表示切り替え */}
+          {viewMode === 'dashboard' ? (
+            <DashboardView
+              vehicles={vehicles}
+              vehicleAssignments={vehicleAssignments}
+              unassignedUsers={unassignedUsers}
+              onToggleAbsent={handleToggleAbsent}
+              onOptimizeVehicle={handleOptimizeVehicleRoute}
+              activeId={activeId}
+            />
+          ) : (
           <div className="grid grid-cols-3 gap-6">
             {/* 左側: 未割り当て利用者リスト */}
             <div className="col-span-1">
@@ -697,6 +730,7 @@ function App() {
               </Card>
             </div>
           </div>
+          )}
         </div>
       </div>
 
