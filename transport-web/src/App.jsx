@@ -46,14 +46,11 @@ function App() {
   const [vehicles, setVehicles] = useState(vehiclesData)
   const [facility, setFacility] = useState(facilityData)
   const [showMap, setShowMap] = useState(false)
-  const [activeId, setActiveId] = useState(null)
   const [viewMode, setViewMode] = useState('tab') // 'tab' or 'dashboard'
-  
-  // 車両ごとの割り当て（複数便対応）
+  const [activeId, setActiveId] = useState(null)
   const [vehicleAssignments, setVehicleAssignments] = useState({})
-  
-  // 未割り当ての利用者リスト
   const [unassignedUsers, setUnassignedUsers] = useState([])
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   const weekdays = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日']
 
@@ -68,6 +65,7 @@ function App() {
 
   // 曜日が変わったらローカルストレージから読み込む
   useEffect(() => {
+    setIsInitialLoad(true) // 読み込み中フラグを立てる
     const storageKey = `transport_plan_${selectedWeekday}`
     const saved = localStorage.getItem(storageKey)
     
@@ -89,10 +87,15 @@ function App() {
       })
       setVehicleAssignments(initialAssignments)
     }
+    
+    // 次のレンダリングでフラグを下ろす
+    setTimeout(() => setIsInitialLoad(false), 0)
   }, [selectedWeekday])
   
-  // 変更をローカルストレージに自動保存
+  // 変更をローカルストレージに自動保存（初期読み込み時はスキップ）
   useEffect(() => {
+    if (isInitialLoad) return // 初期読み込み中は保存しない
+    
     const storageKey = `transport_plan_${selectedWeekday}`
     const dataToSave = {
       unassignedUsers,
@@ -100,7 +103,7 @@ function App() {
       savedAt: new Date().toISOString()
     }
     localStorage.setItem(storageKey, JSON.stringify(dataToSave))
-  }, [vehicleAssignments, unassignedUsers, selectedWeekday])
+  }, [vehicleAssignments, unassignedUsers, selectedWeekday, isInitialLoad])
 
   // 自動割り当て
   const handleAutoAssign = () => {
