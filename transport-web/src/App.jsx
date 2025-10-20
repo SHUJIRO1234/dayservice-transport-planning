@@ -66,20 +66,41 @@ function App() {
     })
   )
 
-  // 曜日が変わったら利用者をリセット
+  // 曜日が変わったらローカルストレージから読み込む
   useEffect(() => {
-    const users = weeklyData[selectedWeekday] || []
-    setUnassignedUsers(users)
+    const storageKey = `transport_plan_${selectedWeekday}`
+    const saved = localStorage.getItem(storageKey)
     
-    // 車両割り当てをリセット
-    const initialAssignments = {}
-    vehicles.forEach(vehicle => {
-      initialAssignments[vehicle.id] = {
-        trips: [{ users: [], distance: 0, duration: 0 }]
-      }
-    })
-    setVehicleAssignments(initialAssignments)
+    if (saved) {
+      // 保存されたデータを読み込む
+      const savedData = JSON.parse(saved)
+      setUnassignedUsers(savedData.unassignedUsers || [])
+      setVehicleAssignments(savedData.vehicleAssignments || {})
+    } else {
+      // 保存されたデータがない場合は初期化
+      const users = weeklyData[selectedWeekday] || []
+      setUnassignedUsers(users)
+      
+      const initialAssignments = {}
+      vehicles.forEach(vehicle => {
+        initialAssignments[vehicle.id] = {
+          trips: [{ users: [], distance: 0, duration: 0 }]
+        }
+      })
+      setVehicleAssignments(initialAssignments)
+    }
   }, [selectedWeekday])
+  
+  // 変更をローカルストレージに自動保存
+  useEffect(() => {
+    const storageKey = `transport_plan_${selectedWeekday}`
+    const dataToSave = {
+      unassignedUsers,
+      vehicleAssignments,
+      savedAt: new Date().toISOString()
+    }
+    localStorage.setItem(storageKey, JSON.stringify(dataToSave))
+  }, [vehicleAssignments, unassignedUsers, selectedWeekday])
 
   // 自動割り当て
   const handleAutoAssign = () => {
@@ -303,6 +324,8 @@ function App() {
 
     const activeId = active.id
     const overId = over.id
+    
+    console.log('Drag End:', { activeId, overId })
 
     // ドラッグ元を特定
     let sourceType = null
@@ -372,6 +395,15 @@ function App() {
         if (targetType === 'reorder') break
       }
     }
+    
+    console.log('Target:', { targetType, targetVehicleId, targetTripIndex })
+    console.log('Source:', { sourceType, sourceVehicleId, sourceTripIndex })
+    
+    // ターゲットが特定できない場合は何もしない
+    if (!targetType) {
+      console.warn('ターゲットが特定できませんでした')
+      return
+    }
 
     // 移動処理
     const newAssignments = { ...vehicleAssignments }
@@ -391,6 +423,31 @@ function App() {
       
       setVehicleAssignments(newAssignments)
       return
+    }
+
+    // 移動先のバリデーション（元の場所から削除する前にチェック）
+    if (targetType === 'vehicle' || targetType === 'trip') {
+      if (!newAssignments[targetVehicleId]) {
+        newAssignments[targetVehicleId] = { trips: [{ users: [], distance: 0, duration: 0 }] }
+      }
+      
+      // 定員チェック
+      const targetVehicle = vehicles.find(v => v.id === targetVehicleId)
+      const targetTrip = newAssignments[targetVehicleId].trips[targetTripIndex]
+      const currentUsers = targetTrip.users.length
+      const currentWheelchairUsers = targetTrip.users.filter(u => u.wheelchair).length
+      
+      // 車椅子定員チェック
+      if (draggedUser.wheelchair && currentWheelchairUsers >= targetVehicle.wheelchairCapacity) {
+        alert(`車椅子定員オーバーです。${targetVehicle.name}の車椅子定員は${targetVehicle.wheelchairCapacity}台です。`)
+        return // 元の場所に残る
+      }
+      
+      // 総定員チェック
+      if (currentUsers >= targetVehicle.capacity) {
+        alert(`定員オーバーです。${targetVehicle.name}の定員は${targetVehicle.capacity}名です。`)
+        return // 元の場所に残る
+      }
     }
 
     // 元の場所から削除
@@ -415,9 +472,6 @@ function App() {
     if (targetType === 'unassigned') {
       setUnassignedUsers(prev => [...prev, draggedUser])
     } else if (targetType === 'vehicle' || targetType === 'trip') {
-      if (!newAssignments[targetVehicleId]) {
-        newAssignments[targetVehicleId] = { trips: [{ users: [], distance: 0, duration: 0 }] }
-      }
       newAssignments[targetVehicleId].trips[targetTripIndex].users.push(draggedUser)
       
       // 距離と時間を再計算

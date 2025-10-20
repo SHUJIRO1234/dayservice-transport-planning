@@ -18,7 +18,7 @@ const VehicleTripDropZone = ({ vehicleId, tripIndex, children, isEmpty }) => {
       ref={setNodeRef}
       className={`
         min-h-[120px] rounded-lg p-3 transition-all
-        ${isOver ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-50 border border-gray-200'}
+        ${isOver ? 'bg-blue-100 border-2 border-blue-500' : 'bg-gray-50 border border-gray-200'}
         ${isEmpty ? 'border-dashed' : ''}
       `}
     >
@@ -47,8 +47,7 @@ const UnassignedPanel = ({ users, onToggleAbsent, isDragging }) => {
           ref={setNodeRef}
           className={`
             space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto pr-2 p-3 rounded-lg transition-all
-            ${isOver ? 'bg-blue-100 border-2 border-blue-500' : ''}
-            ${isDragging && !isOver ? 'bg-green-50 border-2 border-green-400 border-dashed' : ''}
+            ${isOver ? 'bg-blue-100 border-2 border-blue-500' : 'bg-gray-50 border border-gray-200'}
           `}
         >
           {isDragging && (
@@ -82,7 +81,8 @@ const UnassignedPanel = ({ users, onToggleAbsent, isDragging }) => {
 
 // 車両パネル
 const VehiclePanel = ({ vehicle, assignment, onOptimize }) => {
-  const trips = assignment?.trips || [];
+  // 便がない場合は空の第1便を作成
+  const trips = assignment?.trips || [{ users: [], distance: 0, duration: 0 }];
   const totalUsers = trips.reduce((sum, trip) => sum + trip.users.length, 0);
   const wheelchairUsers = trips.reduce((sum, trip) => 
     sum + trip.users.filter(u => u.wheelchair).length, 0
