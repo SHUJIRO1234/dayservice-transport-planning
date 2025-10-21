@@ -327,12 +327,15 @@ function App() {
   // ドラッグ終了
   const handleDragEnd = (event) => {
     const { active, over } = event
-    setActiveId(null)
 
+    // overがない場合は何もしない（先にチェック）
     if (!over) {
-      console.log('ドロップ失敗: ドロップゾーンが見つかりませんでした。元の位置に残ります。')
+      console.log('ドロップ失敗: ドロップゾーンが見つかりませんでした。元の位置に残ります。', { activeId: active.id })
+      setActiveId(null)
       return
     }
+    
+    setActiveId(null)
 
     const activeId = active.id
     const overId = over.id
