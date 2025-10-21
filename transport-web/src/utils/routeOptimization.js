@@ -34,8 +34,9 @@ function toRad(degrees) {
 /**
  * 最近傍法を使用して送迎ルートを最適化
  * デイサービスから出発 → 利用者を順次ピックアップ → デイサービスに戻る
+ * 順番固定の利用者は現在の位置を維持
  * @param {Object} facility - 事業所の座標 {lat, lng, name}
- * @param {Array} users - 利用者の配列 [{lat, lng, name, ...}, ...]
+ * @param {Array} users - 利用者の配列 [{lat, lng, name, isOrderFixed, ...}, ...]
  * @returns {Object} - {route: 座標の配列, totalDistance: 総距離, order: 訪問順序}
  */
 export function optimizeRoute(facility, users) {
@@ -48,7 +49,12 @@ export function optimizeRoute(facility, users) {
     }
   }
 
-  const unvisited = [...users]
+  // 順番固定の利用者と柔軟な利用者を分離
+  const fixedUsers = users.map((user, index) => ({ user, originalIndex: index })).filter(item => item.user.isOrderFixed)
+  const flexibleUsers = users.filter(user => !user.isOrderFixed)
+
+  // 柔軟な利用者のみを最適化
+  const unvisited = [...flexibleUsers]
   const visited = []
   const routeCoordinates = []
   let totalDistance = 0
@@ -57,7 +63,7 @@ export function optimizeRoute(facility, users) {
   // 事業所から開始
   routeCoordinates.push([facility.lat, facility.lng])
 
-  // 最近傍法：現在地から最も近い未訪問の利用者を次の訪問先とする
+  // 最近傍法：柔軟な利用者のみを最適化
   while (unvisited.length > 0) {
     let nearestIndex = 0
     let nearestDistance = Infinity
@@ -74,10 +80,31 @@ export function optimizeRoute(facility, users) {
     // 最も近い利用者を訪問
     const nextUser = unvisited[nearestIndex]
     visited.push(nextUser)
-    routeCoordinates.push([nextUser.lat, nextUser.lng])
-    totalDistance += nearestDistance
     currentPoint = nextUser
     unvisited.splice(nearestIndex, 1)
+  }
+
+  // 固定された利用者を元の位置に挿入
+  const finalOrder = []
+  let flexibleIndex = 0
+  for (let i = 0; i < users.length; i++) {
+    const fixedItem = fixedUsers.find(item => item.originalIndex === i)
+    if (fixedItem) {
+      finalOrder.push(fixedItem.user)
+    } else if (flexibleIndex < visited.length) {
+      finalOrder.push(visited[flexibleIndex])
+      flexibleIndex++
+    }
+  }
+
+  // 距離とルートを再計算
+  currentPoint = facility
+  totalDistance = 0
+  for (const user of finalOrder) {
+    const distance = calculateDistance(currentPoint, user)
+    totalDistance += distance
+    routeCoordinates.push([user.lat, user.lng])
+    currentPoint = user
   }
 
   // 最後に事業所に戻る
@@ -89,13 +116,13 @@ export function optimizeRoute(facility, users) {
   const averageSpeed = 20 // km/h
   const stopTime = 3 // 分
   const drivingTime = (totalDistance / averageSpeed) * 60 // 分
-  const totalStopTime = visited.length * stopTime
+  const totalStopTime = finalOrder.length * stopTime
   const estimatedTime = Math.ceil(drivingTime + totalStopTime)
 
   return {
     route: routeCoordinates,
     totalDistance: Math.round(totalDistance * 100) / 100, // 小数点2桁
-    order: visited,
+    order: finalOrder,
     estimatedTime
   }
 }

@@ -244,6 +244,24 @@ function App() {
     ))
   }
 
+  // 順番固定のトグル
+  const handleToggleOrderFixed = (userId) => {
+    const newAssignments = { ...vehicleAssignments }
+    let updated = false
+
+    // 各車両の各便で利用者を探して更新
+    Object.keys(newAssignments).forEach(vehicleId => {
+      newAssignments[vehicleId].trips = newAssignments[vehicleId].trips.map(trip => ({
+        ...trip,
+        users: trip.users.map(u => 
+          u.id === userId ? { ...u, isOrderFixed: !u.isOrderFixed } : u
+        )
+      }))
+    })
+
+    setVehicleAssignments(newAssignments)
+  }
+
   // 全ルート最適化
   const handleOptimizeAllRoutes = () => {
     if (!facility) return
@@ -792,6 +810,7 @@ function App() {
                           onAddTrip={handleAddTrip}
                           onRemoveTrip={handleRemoveTrip}
                           onReorderUsers={handleReorderUsers}
+                          onToggleOrderFixed={handleToggleOrderFixed}
                         />
                       </>
                     )}

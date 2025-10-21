@@ -1,9 +1,9 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, MapPin, Clock, Accessibility, UserX } from 'lucide-react';
+import { GripVertical, MapPin, Clock, Accessibility, UserX, Pin } from 'lucide-react';
 
-const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = false, compact = false, showCheckbox = false }) => {
+const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = false, compact = false, showCheckbox = false, onToggleOrderFixed, showOrderFixedToggle = false }) => {
   const {
     attributes,
     listeners,
@@ -70,9 +70,12 @@ const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = fals
                 <Accessibility className="w-3 h-3 inline-block ml-1 text-purple-600" />
               )}
               {user.isAbsent && (
-                <UserX className="w-3 h-3 inline-block ml-1 text-red-600" />
-              )}
-            </div>
+              <UserX className="w-3 h-3 inline-block ml-1 text-red-600" />
+            )}
+            {user.isOrderFixed && (
+              <Pin className="w-3 h-3 inline-block ml-1 text-blue-600" />
+            )}
+          </div>
             <div className="text-gray-500 truncate text-xs">
               {user.address}
             </div>
@@ -134,6 +137,12 @@ const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = fals
               車椅子
             </span>
           )}
+          {user.isOrderFixed && (
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
+              <Pin className="w-3 h-3" />
+              順番固定
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
           <MapPin className="w-3 h-3" />
@@ -145,6 +154,22 @@ const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = fals
           </div>
         )}
       </div>
+
+      {showOrderFixedToggle && (
+        <div className="flex-shrink-0 flex flex-col items-center gap-1" onClick={(e) => {
+          e.stopPropagation();
+          if (onToggleOrderFixed) onToggleOrderFixed(user.id);
+        }}>
+          <input
+            type="checkbox"
+            checked={user.isOrderFixed || false}
+            onChange={() => onToggleOrderFixed && onToggleOrderFixed(user.id)}
+            className="w-4 h-4 cursor-pointer"
+            title="順番を固定"
+          />
+          <span className="text-xs text-gray-500">固定</span>
+        </div>
+      )}
 
       <div className="flex-shrink-0 text-right text-xs text-gray-600">
         <div className="flex items-center gap-1">

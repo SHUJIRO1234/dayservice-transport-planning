@@ -30,7 +30,8 @@ const TripManager = ({
   facility,
   onAddTrip, 
   onRemoveTrip, 
-  onReorderUsers
+  onReorderUsers,
+  onToggleOrderFixed
 }) => {
   return (
     <div className="space-y-4">
@@ -70,6 +71,8 @@ const TripManager = ({
                     key={user.id}
                     user={user}
                     index={userIndex}
+                    showOrderFixedToggle={true}
+                    onToggleOrderFixed={onToggleOrderFixed}
                   />
                 ))}
               </div>
