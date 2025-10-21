@@ -323,7 +323,10 @@ function App() {
     const { active, over } = event
     setActiveId(null)
 
-    if (!over) return
+    if (!over) {
+      console.log('ドロップ失敗: ドロップゾーンが見つかりませんでした。元の位置に残ります。')
+      return
+    }
 
     const activeId = active.id
     const overId = over.id

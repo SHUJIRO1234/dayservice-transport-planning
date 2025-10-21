@@ -34,7 +34,7 @@ const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = fals
         style={style}
         {...attributes}
         {...listeners}
-        className={`flex items-center gap-1 p-1 rounded border text-xs transition-colors ${
+        className={`flex items-center gap-1 p-1.5 rounded border text-xs transition-colors ${
           user.isAbsent
             ? 'bg-gray-100 border-gray-300 opacity-60'
             : 'bg-white border-gray-200 hover:border-blue-300 cursor-grab active:cursor-grabbing'
@@ -46,16 +46,21 @@ const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = fals
           </div>
         )}
 
-        <div className="flex-1 min-w-0 truncate">
-          <span className={`font-semibold ${user.isAbsent ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-            {user.name}
-          </span>
-          {user.wheelchair && (
-            <Accessibility className="w-3 h-3 inline-block ml-1 text-purple-600" />
-          )}
-          {user.isAbsent && (
-            <UserX className="w-3 h-3 inline-block ml-1 text-red-600" />
-          )}
+        <div className="flex-1 min-w-0">
+          <div className="truncate">
+            <span className={`font-semibold ${user.isAbsent ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+              {user.name}
+            </span>
+            {user.wheelchair && (
+              <Accessibility className="w-3 h-3 inline-block ml-1 text-purple-600" />
+            )}
+            {user.isAbsent && (
+              <UserX className="w-3 h-3 inline-block ml-1 text-red-600" />
+            )}
+          </div>
+          <div className="text-gray-500 truncate text-xs">
+            {user.address}
+          </div>
         </div>
       </div>
     );
