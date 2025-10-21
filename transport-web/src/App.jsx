@@ -318,6 +318,12 @@ function App() {
     setActiveId(event.active.id)
   }
 
+  // ドラッグキャンセル
+  const handleDragCancel = () => {
+    console.log('ドラッグがキャンセルされました')
+    setActiveId(null)
+  }
+
   // ドラッグ終了
   const handleDragEnd = (event) => {
     const { active, over } = event
@@ -514,6 +520,7 @@ function App() {
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <div className="container mx-auto p-4 md:p-6">
