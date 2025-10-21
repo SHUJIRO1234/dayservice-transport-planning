@@ -60,12 +60,26 @@ const UnassignedPanel = ({ users, onToggleAbsent, isDragging }) => {
             strategy={verticalListSortingStrategy}
           >
             {users.map((user) => (
-              <SortableUserCard
-                key={user.id}
-                user={user}
-                showAbsentToggle={true}
-                onToggleAbsent={onToggleAbsent}
-              />
+              <div key={user.id} className="flex items-center gap-1">
+                <div className="flex-shrink-0" onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleAbsent(user.id);
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={user.isAbsent || false}
+                    onChange={() => onToggleAbsent(user.id)}
+                    className="w-3 h-3 cursor-pointer"
+                    title="欠席としてマーク"
+                  />
+                </div>
+                <div className="flex-1">
+                  <SortableUserCard
+                    user={user}
+                    compact={true}
+                  />
+                </div>
+              </div>
             ))}
           </SortableContext>
           {users.length === 0 && (
@@ -149,6 +163,7 @@ const VehiclePanel = ({ vehicle, assignment, onOptimize }) => {
                         key={user.id}
                         user={user}
                         index={userIndex}
+                        compact={true}
                       />
                     ))}
                   </div>

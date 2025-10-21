@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, MapPin, Clock, Accessibility, UserX } from 'lucide-react';
 
-const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = false }) => {
+const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = false, compact = false }) => {
   const {
     attributes,
     listeners,
@@ -26,6 +26,42 @@ const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = fals
     }
   };
 
+  // コンパクトモード（全体ビュー用）
+  if (compact) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className={`flex items-center gap-1 p-1 rounded border text-xs transition-colors ${
+          user.isAbsent
+            ? 'bg-gray-100 border-gray-300 opacity-60'
+            : 'bg-white border-gray-200 hover:border-blue-300 cursor-grab active:cursor-grabbing'
+        }`}
+      >
+        {index !== undefined && (
+          <div className="flex-shrink-0 w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold text-xs">
+            {index + 1}
+          </div>
+        )}
+
+        <div className="flex-1 min-w-0 truncate">
+          <span className={`font-semibold ${user.isAbsent ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+            {user.name}
+          </span>
+          {user.wheelchair && (
+            <Accessibility className="w-3 h-3 inline-block ml-1 text-purple-600" />
+          )}
+          {user.isAbsent && (
+            <UserX className="w-3 h-3 inline-block ml-1 text-red-600" />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 通常モード（タブビュー用）
   return (
     <div
       ref={setNodeRef}
