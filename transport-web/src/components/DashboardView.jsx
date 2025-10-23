@@ -5,7 +5,7 @@ import SortableUserCard from './SortableUserCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { Badge } from '@/components/ui/badge.jsx';
 import { Button } from '@/components/ui/button.jsx';
-import { Car, Users, Clock, MapPin, Route, Accessibility } from 'lucide-react';
+import { Car, Users, Clock, MapPin, Route, Accessibility, Lock } from 'lucide-react';
 
 // 車両パネル用のドロップゾーン
 const VehicleTripDropZone = ({ vehicleId, tripIndex, children, isEmpty }) => {
@@ -88,7 +88,7 @@ const UnassignedPanel = ({ users, onToggleAbsent, onToggleOrderFixed, isDragging
 };
 
 // 車両パネル
-const VehiclePanel = ({ vehicle, assignment, onOptimize }) => {
+const VehiclePanel = ({ vehicle, assignment, onOptimize, onToggleLock }) => {
   // 便がない場合は空の第1便を作成
   const trips = assignment?.trips || [{ users: [], distance: 0, duration: 0 }];
   const totalUsers = trips.reduce((sum, trip) => sum + trip.users.length, 0);
@@ -106,17 +106,34 @@ const VehiclePanel = ({ vehicle, assignment, onOptimize }) => {
             {!vehicle.isActive && (
               <Badge variant="secondary" className="bg-gray-300 text-xs">無効</Badge>
             )}
+            {vehicle.isLocked && (
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs flex items-center gap-1">
+                <Lock className="w-3 h-3" />
+                固定
+              </Badge>
+            )}
           </CardTitle>
-          <Button
-            onClick={() => onOptimize(vehicle.id)}
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs"
-            disabled={!vehicle.isActive || totalUsers === 0}
-          >
-            <Route className="w-3 h-3 mr-1" />
-            最適化
-          </Button>
+          <div className="flex gap-1 items-center">
+            <label className="flex items-center gap-1 cursor-pointer mr-2">
+              <input
+                type="checkbox"
+                checked={vehicle.isLocked || false}
+                onChange={() => onToggleLock(vehicle.id)}
+                className="w-3 h-3 cursor-pointer"
+              />
+              <span className="text-xs">固定</span>
+            </label>
+            <Button
+              onClick={() => onOptimize(vehicle.id)}
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              disabled={!vehicle.isActive || totalUsers === 0}
+            >
+              <Route className="w-3 h-3 mr-1" />
+              最適化
+            </Button>
+          </div>
         </div>
         <div className="flex gap-2 mt-1 text-xs">
           <Badge variant="outline" className="text-xs">
@@ -191,6 +208,7 @@ const DashboardView = ({
   onToggleAbsent,
   onToggleOrderFixed,
   onOptimizeVehicle,
+  onToggleVehicleLock,
   activeId,
 }) => {
   const activeVehicles = vehicles.filter(v => v.isActive);
@@ -214,6 +232,7 @@ const DashboardView = ({
             vehicle={vehicle}
             assignment={vehicleAssignments[vehicle.id]}
             onOptimize={onOptimizeVehicle}
+            onToggleLock={onToggleVehicleLock}
           />
         </div>
       ))}

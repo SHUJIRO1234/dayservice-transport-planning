@@ -47,7 +47,8 @@ function App() {
   const [facility, setFacility] = useState(facilityData)
   const [showMap, setShowMap] = useState(false)
   const [viewMode, setViewMode] = useState('tab') // 'tab' or 'dashboard'
-  const [activeId, setActiveId] = useState(null)
+  const [activeId, setActiveId] = useState(null);
+  const [activeUser, setActiveUser] = useState(null);
   const [vehicleAssignments, setVehicleAssignments] = useState({})
   const [unassignedUsers, setUnassignedUsers] = useState([])
   const [isInitialLoad, setIsInitialLoad] = useState(true)
@@ -126,11 +127,11 @@ function App() {
     let wheelchairUsers = flexibleUsers.filter(u => u.wheelchair)
     let regularUsers = flexibleUsers.filter(u => !u.wheelchair)
 
-    // 有効な車両のみを対象にする
-    const activeVehicles = vehicles.filter(v => v.isActive)
+    // 有効で固定されていない車両のみを対象にする
+    const activeVehicles = vehicles.filter(v => v.isActive && !v.isLocked)
     
     if (activeVehicles.length === 0) {
-      alert('有効な車両がありません。車両を有効にしてください。')
+      alert('有効で固定されていない車両がありません。')
       return
     }
 
@@ -231,18 +232,44 @@ function App() {
     setUnassignedUsers(remainingUsers)
   }
 
-  // 全リセット
+  // 全リセット（固定されていない車両のみ）
   const handleResetAll = () => {
     const users = weeklyData[selectedWeekday] || []
-    setUnassignedUsers(users)
     
-    const initialAssignments = {}
+    // 固定されていない車両の利用者を未割り当てに戻す
+    const unlockedUsers = []
+    const newAssignments = {}
+    
     vehicles.forEach(vehicle => {
-      initialAssignments[vehicle.id] = {
-        trips: [{ users: [], distance: 0, duration: 0 }]
+      if (vehicle.isLocked) {
+        // 固定された車両の割り当てを保持
+        newAssignments[vehicle.id] = vehicleAssignments[vehicle.id] || { trips: [{ users: [], distance: 0, duration: 0 }] }
+      } else {
+        // 固定されていない車両の利用者を未割り当てに戻す
+        const assignment = vehicleAssignments[vehicle.id]
+        if (assignment) {
+          assignment.trips.forEach(trip => {
+            unlockedUsers.push(...trip.users)
+          })
+        }
+        newAssignments[vehicle.id] = { trips: [{ users: [], distance: 0, duration: 0 }] }
       }
     })
-    setVehicleAssignments(initialAssignments)
+    
+    // 固定された車両に割り当てられている利用者を除外
+    const lockedUserIds = new Set()
+    vehicles.forEach(vehicle => {
+      if (vehicle.isLocked && newAssignments[vehicle.id]) {
+        newAssignments[vehicle.id].trips.forEach(trip => {
+          trip.users.forEach(user => lockedUserIds.add(user.id))
+        })
+      }
+    })
+    
+    // 元の未割り当てリストと固定されていない車両の利用者を合わせる
+    const allUnassignedUsers = users.filter(u => !lockedUserIds.has(u.id))
+    setUnassignedUsers(allUnassignedUsers)
+    setVehicleAssignments(newAssignments)
   }
 
   // 車両ごとのリセット
@@ -291,6 +318,13 @@ function App() {
   const handleToggleVehicle = (vehicleId) => {
     setVehicles(vehicles.map(v => 
       v.id === vehicleId ? { ...v, isActive: !v.isActive } : v
+    ))
+  }
+
+  // 車両の固定/解除切り替え
+  const handleToggleVehicleLock = (vehicleId) => {
+    setVehicles(vehicles.map(v => 
+      v.id === vehicleId ? { ...v, isLocked: !v.isLocked } : v
     ))
   }
 
@@ -397,13 +431,20 @@ function App() {
 
   // ドラッグ開始
   const handleDragStart = (event) => {
-    setActiveId(event.active.id)
+    const { active } = event;
+    setActiveId(active.id);
+    const user = unassignedUsers.find(u => u.id === active.id) || 
+                 Object.values(vehicleAssignments)
+                   .flatMap(a => a.trips)
+                   .flatMap(t => t.users)
+                   .find(u => u.id === active.id);
+    setActiveUser(user);
   }
 
   // ドラッグキャンセル
   const handleDragCancel = () => {
-    console.log('ドラッグがキャンセルされました')
-    setActiveId(null)
+    setActiveId(null);
+    setActiveUser(null);
   }
 
   // ドラッグ終了
@@ -412,13 +453,14 @@ function App() {
 
     // overがない場合は何もしない（先にチェック）
     if (!over) {
-      console.log('ドロップ失敗: ドロップゾーンが見つかりませんでした。元の位置に残ります。', { activeId: active.id })
-      alert('ドロップ失敗: 青いドロップゾーンにドロップしてください。利用者は元の位置に残りました。')
-      setActiveId(null)
-      return
+      console.log('ドロップ失敗: ドロップゾーンが見つかりませんでした。');
+      setActiveId(null);
+      setActiveUser(null);
+      return;
     }
     
-    setActiveId(null)
+    setActiveId(null);
+    setActiveUser(null);
 
     const activeId = active.id
     const overId = over.id
@@ -763,6 +805,7 @@ function App() {
               onToggleAbsent={handleToggleAbsent}
               onToggleOrderFixed={handleToggleOrderFixed}
               onOptimizeVehicle={handleOptimizeVehicleRoute}
+              onToggleVehicleLock={handleToggleVehicleLock}
               activeId={activeId}
             />
           ) : (
@@ -841,7 +884,7 @@ function App() {
                             <p className="text-sm text-gray-600">
                               担当: {vehicles.find(v => v.id === selectedVehicle).driver}
                             </p>
-                            <div className="flex gap-4 mt-2">
+                            <div className="flex gap-4 mt-2 items-center">
                               <Badge variant="outline">
                                 定員: {selectedVehicleRegular}/{vehicles.find(v => v.id === selectedVehicle).capacity}名
                               </Badge>
@@ -850,7 +893,16 @@ function App() {
                               </Badge>
                             </div>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 items-center">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={vehicles.find(v => v.id === selectedVehicle)?.isLocked || false}
+                                onChange={() => handleToggleVehicleLock(selectedVehicle)}
+                                className="w-4 h-4 cursor-pointer"
+                              />
+                              <span className="text-sm font-medium">固定</span>
+                            </label>
                             <Button
                               onClick={() => handleOptimizeVehicleRoute(selectedVehicle)}
                               size="sm"
@@ -863,6 +915,7 @@ function App() {
                               onClick={() => handleResetVehicle(selectedVehicle)}
                               size="sm"
                               variant="destructive"
+                              disabled={vehicles.find(v => v.id === selectedVehicle)?.isLocked}
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
                               リセット
@@ -892,10 +945,8 @@ function App() {
       </div>
 
       <DragOverlay>
-        {activeId ? (
-          <div className="bg-white p-4 rounded-lg shadow-lg border-2 border-blue-500">
-            ドラッグ中...
-          </div>
+        {activeUser ? (
+          <SortableUserCard user={activeUser} isOverlay={true} />
         ) : null}
       </DragOverlay>
     </DndContext>

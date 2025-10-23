@@ -1683,6 +1683,7 @@ export const vehicles = [
     capacity: 8,
     wheelchairCapacity: 2,
     isActive: true,
+    isLocked: false,
   },
   {
     id: 2,
@@ -1691,6 +1692,7 @@ export const vehicles = [
     capacity: 6,
     wheelchairCapacity: 1,
     isActive: true,
+    isLocked: false,
   },
   {
     id: 3,
@@ -1699,6 +1701,7 @@ export const vehicles = [
     capacity: 8,
     wheelchairCapacity: 2,
     isActive: true,
+    isLocked: false,
   },
   {
     id: 4,
@@ -1707,6 +1710,7 @@ export const vehicles = [
     capacity: 7,
     wheelchairCapacity: 1,
     isActive: true,
+    isLocked: false,
   },
   {
     id: 5,
@@ -1715,5 +1719,6 @@ export const vehicles = [
     capacity: 6,
     wheelchairCapacity: 1,
     isActive: true,
+    isLocked: false,
   },
 ];

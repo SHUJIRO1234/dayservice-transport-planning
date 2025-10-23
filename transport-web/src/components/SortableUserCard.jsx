@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, MapPin, Clock, Accessibility, UserX, Pin } from 'lucide-react';
 
-const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = false, compact = false, showCheckbox = false, onToggleOrderFixed, showOrderFixedToggle = false, showUnassignedOrderFixedToggle = false }) => {
+const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = false, compact = false, showCheckbox = false, onToggleOrderFixed, showOrderFixedToggle = false, showUnassignedOrderFixedToggle = false, isOverlay = false }) => {
   const {
     attributes,
     listeners,
@@ -15,8 +15,9 @@ const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = fals
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transition: isOverlay ? 'none' : transition,
+    opacity: isDragging && !isOverlay ? 0.5 : 1,
+    zIndex: isDragging || isOverlay ? 9999 : 'auto',
   };
 
   const handleAbsentToggle = (e) => {
@@ -104,11 +105,11 @@ const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = fals
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-        user.isAbsent
-          ? 'bg-gray-100 border-gray-300 opacity-60'
-          : 'bg-gray-50 border-gray-200 hover:border-blue-300 cursor-grab active:cursor-grabbing'
-      }`}
+className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${isOverlay ? 'shadow-2xl bg-white scale-105' : ''} ${
+	        user.isAbsent
+	          ? 'bg-gray-100 border-gray-300 opacity-60'
+	          : 'bg-gray-50 border-gray-200 hover:border-blue-300 cursor-grab active:cursor-grabbing'
+	      }`}
     >
       {showAbsentToggle && (
         <div className="flex-shrink-0 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
