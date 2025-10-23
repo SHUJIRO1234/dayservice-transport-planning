@@ -4,7 +4,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Calendar, MapPin, Users, Car, Accessibility, Clock, Route, Navigation, RotateCcw, Trash2 } from 'lucide-react'
+import { Calendar, MapPin, Users, Car, Accessibility, Clock, Route, Navigation, RotateCcw, Trash2, Lock } from 'lucide-react'
 import TransportMap from './components/TransportMap.jsx'
 import VehicleTabs from './components/VehicleTabs.jsx'
 import TripManager from './components/TripManager.jsx'
@@ -326,6 +326,16 @@ function App() {
     setVehicles(vehicles.map(v => 
       v.id === vehicleId ? { ...v, isLocked: !v.isLocked } : v
     ))
+  }
+
+  // 全車両を固定
+  const handleLockAll = () => {
+    setVehicles(vehicles.map(v => ({ ...v, isLocked: true })))
+  }
+
+  // 全車両の固定を解除
+  const handleUnlockAll = () => {
+    setVehicles(vehicles.map(v => ({ ...v, isLocked: false })))
   }
 
   // 欠席者のトグル
@@ -770,6 +780,14 @@ function App() {
             <Button onClick={() => setShowMap(!showMap)} variant="outline" className="flex items-center gap-2">
               <MapPin className="w-4 h-4" />
               {showMap ? '地図を隠す' : '地図で表示'}
+            </Button>
+            <Button onClick={handleLockAll} variant="outline" className="flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              全固定
+            </Button>
+            <Button onClick={handleUnlockAll} variant="outline" className="flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              全解除
             </Button>
             <Button onClick={handleResetAll} variant="destructive" className="flex items-center gap-2">
               <RotateCcw className="w-4 h-4" />
