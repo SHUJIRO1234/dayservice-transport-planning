@@ -575,6 +575,12 @@ function App() {
       return
     }
 
+    // 別の便の利用者にドロップした場合、その便に移動する
+    if (targetType === 'reorder') {
+      // targetTypeを'trip'に変更して通常の移動処理を行う
+      targetType = 'trip'
+    }
+
     // 移動先のバリデーション（元の場所から削除する前にチェック）
     if (targetType === 'vehicle' || targetType === 'trip') {
       if (!newAssignments[targetVehicleId]) {
