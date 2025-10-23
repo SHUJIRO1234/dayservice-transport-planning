@@ -28,7 +28,7 @@ const VehicleTripDropZone = ({ vehicleId, tripIndex, children, isEmpty }) => {
 };
 
 // 未割り当てパネル
-const UnassignedPanel = ({ users, onToggleAbsent, isDragging }) => {
+const UnassignedPanel = ({ users, onToggleAbsent, onToggleOrderFixed, isDragging }) => {
   const { isOver, setNodeRef } = useDroppable({
     id: 'unassigned',
   });
@@ -66,6 +66,8 @@ const UnassignedPanel = ({ users, onToggleAbsent, isDragging }) => {
                 compact={true}
                 showCheckbox={true}
                 onToggleAbsent={onToggleAbsent}
+                showUnassignedOrderFixedToggle={true}
+                onToggleOrderFixed={onToggleOrderFixed}
               />
             ))}
           </SortableContext>
@@ -194,6 +196,7 @@ const DashboardView = ({
         <UnassignedPanel
           users={unassignedUsers}
           onToggleAbsent={onToggleAbsent}
+          onToggleOrderFixed={onToggleOrderFixed}
           isDragging={!!activeId}
         />
       </div>

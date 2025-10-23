@@ -111,8 +111,20 @@ function App() {
 
     const newAssignments = { ...vehicleAssignments }
     // 欠席者を除外して割り当て
-    let wheelchairUsers = [...unassignedUsers.filter(u => u.wheelchair && !u.isAbsent)]
-    let regularUsers = [...unassignedUsers.filter(u => !u.wheelchair && !u.isAbsent)]
+    // 朝一の時間順にソート
+    const sortedUsers = [...unassignedUsers.filter(u => !u.isAbsent)].sort((a, b) => {
+      const timeA = a.pickupTime || "99:99"
+      const timeB = b.pickupTime || "99:99"
+      return timeA.localeCompare(timeB)
+    })
+    
+    // 固定された利用者と柔軟な利用者を分離
+    const fixedUsers = sortedUsers.filter(u => u.isOrderFixed)
+    const flexibleUsers = sortedUsers.filter(u => !u.isOrderFixed)
+    
+    // 車椅子と一般に分類
+    let wheelchairUsers = flexibleUsers.filter(u => u.wheelchair)
+    let regularUsers = flexibleUsers.filter(u => !u.wheelchair)
 
     // 有効な車両のみを対象にする
     const activeVehicles = vehicles.filter(v => v.isActive)
@@ -137,17 +149,35 @@ function App() {
     const regularTripsNeeded = Math.ceil(totalUsers / totalCapacity)
     const tripsNeeded = Math.max(wheelchairTripsNeeded, regularTripsNeeded)
 
-    // 各車両に必要な便数分の便を作成
+    // 固定ユーザーを各車両の最初に配置
+    let fixedUserIndex = 0
+    activeVehicles.forEach(vehicle => {
+      if (fixedUserIndex < fixedUsers.length) {
+        newAssignments[vehicle.id].trips.push({ users: [fixedUsers[fixedUserIndex]], distance: 0, duration: 0 })
+        fixedUserIndex++
+      } else {
+        newAssignments[vehicle.id].trips.push({ users: [], distance: 0, duration: 0 })
+      }
+    })
+
+    // 必要な便数を再計算
+    const totalUsers = wheelchairUsers.length + regularUsers.length
+    const wheelchairTripsNeeded = Math.ceil(wheelchairUsers.length / totalWheelchairCapacity)
+    const regularTripsNeeded = Math.ceil(totalUsers / totalCapacity)
+    const tripsNeeded = Math.max(wheelchairTripsNeeded, regularTripsNeeded)
+
+    // 柔軟な利用者を割り当て
     for (let tripIndex = 0; tripIndex < tripsNeeded; tripIndex++) {
       activeVehicles.forEach(vehicle => {
-        if (!newAssignments[vehicle.id].trips[tripIndex]) {
+        // 第1便はすでに作成済み
+        if (tripIndex > 0 && !newAssignments[vehicle.id].trips[tripIndex]) {
           newAssignments[vehicle.id].trips.push({ users: [], distance: 0, duration: 0 })
         }
 
         const tripUsers = newAssignments[vehicle.id].trips[tripIndex].users
 
         // 車椅子ユーザーを割り当て
-        let wheelchairAssigned = 0
+        let wheelchairAssigned = tripUsers.filter(u => u.wheelchair).length
         while (wheelchairUsers.length > 0 && wheelchairAssigned < vehicle.wheelchairCapacity) {
           const user = wheelchairUsers.shift()
           tripUsers.push(user)

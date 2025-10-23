@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, MapPin, Clock, Accessibility, UserX, Pin } from 'lucide-react';
 
-const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = false, compact = false, showCheckbox = false, onToggleOrderFixed, showOrderFixedToggle = false }) => {
+const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = false, compact = false, showCheckbox = false, onToggleOrderFixed, showOrderFixedToggle = false, showUnassignedOrderFixedToggle = false }) => {
   const {
     attributes,
     listeners,
@@ -31,17 +31,29 @@ const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = fals
     return (
       <div className="flex items-center gap-1">
         {showCheckbox && (
-          <div className="flex-shrink-0" onClick={(e) => {
-            e.stopPropagation();
-            if (onToggleAbsent) onToggleAbsent(user.id);
-          }}>
-            <input
-              type="checkbox"
-              checked={user.isAbsent || false}
-              onChange={() => onToggleAbsent && onToggleAbsent(user.id)}
-              className="w-3 h-3 cursor-pointer"
-              title="欠席としてマーク"
-            />
+          <div className="flex-shrink-0 flex flex-col gap-0.5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-0.5">
+              <input
+                type="checkbox"
+                checked={user.isAbsent || false}
+                onChange={() => onToggleAbsent && onToggleAbsent(user.id)}
+                className="w-3 h-3 cursor-pointer"
+                title="欠席としてマーク"
+              />
+              <span className="text-xs text-gray-500">欠</span>
+            </div>
+            {showUnassignedOrderFixedToggle && (
+              <div className="flex items-center gap-0.5">
+                <input
+                  type="checkbox"
+                  checked={user.isOrderFixed || false}
+                  onChange={() => onToggleOrderFixed && onToggleOrderFixed(user.id)}
+                  className="w-3 h-3 cursor-pointer"
+                  title="順番を固定"
+                />
+                <span className="text-xs text-gray-500">固</span>
+              </div>
+            )}
           </div>
         )}
         <div
