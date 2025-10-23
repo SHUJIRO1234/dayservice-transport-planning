@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { DndContext, DragOverlay, closestCenter, closestCorners, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core'
+import { DndContext, DragOverlay, closestCenter, closestCorners, PointerSensor, useSensor, useSensors, useDroppable, pointerWithin, rectIntersection, getFirstCollision } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
@@ -63,6 +63,25 @@ function App() {
       },
     })
   )
+
+  // カスタム衝突検出関数（未割り当てパネルを優先）
+  const customCollisionDetection = (args) => {
+    // まずpointerWithinでポインターが内側にあるものを検出
+    const pointerCollisions = pointerWithin(args);
+    
+    // 未割り当てパネルが含まれていれば優先
+    const unassignedCollision = pointerCollisions.find(({ id }) => id === 'unassigned');
+    if (unassignedCollision) {
+      return [unassignedCollision];
+    }
+    
+    // それ以外の場合はclosestCornersを使用
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    
+    return closestCorners(args);
+  }
 
   // 曜日が変わったらローカルストレージから読み込む
   useEffect(() => {
@@ -661,7 +680,7 @@ function App() {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={customCollisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}

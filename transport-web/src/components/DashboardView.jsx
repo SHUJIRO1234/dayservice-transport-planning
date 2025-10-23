@@ -202,7 +202,7 @@ const DashboardView = ({
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
       {/* 未割り当てパネル */}
-      <div className="flex-shrink-0 w-64">
+      <div className="flex-shrink-0 w-80">
         <UnassignedPanel
           users={unassignedUsers}
           onToggleAbsent={onToggleAbsent}
@@ -212,7 +212,7 @@ const DashboardView = ({
 
       {/* 車両パネル */}
       {activeVehicles.map(vehicle => (
-        <div key={vehicle.id} className="flex-shrink-0 w-64">
+        <div key={vehicle.id} className="flex-shrink-0 w-72">
           <VehiclePanel
             vehicle={vehicle}
             assignment={vehicleAssignments[vehicle.id]}
