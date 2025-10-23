@@ -142,12 +142,6 @@ function App() {
     // 必要な便数を計算（車椅子と一般を別々に計算）
     const totalCapacity = activeVehicles.reduce((sum, v) => sum + v.capacity, 0)
     const totalWheelchairCapacity = activeVehicles.reduce((sum, v) => sum + v.wheelchairCapacity, 0)
-    const totalUsers = wheelchairUsers.length + regularUsers.length
-    
-    // 車椅子利用者と一般利用者の必要便数を計算
-    const wheelchairTripsNeeded = Math.ceil(wheelchairUsers.length / totalWheelchairCapacity)
-    const regularTripsNeeded = Math.ceil(totalUsers / totalCapacity)
-    const tripsNeeded = Math.max(wheelchairTripsNeeded, regularTripsNeeded)
 
     // 固定ユーザーを各車両の最初に配置
     let fixedUserIndex = 0
@@ -160,7 +154,7 @@ function App() {
       }
     })
 
-    // 必要な便数を再計算
+    // 必要な便数を計算
     const totalUsers = wheelchairUsers.length + regularUsers.length
     const wheelchairTripsNeeded = Math.ceil(wheelchairUsers.length / totalWheelchairCapacity)
     const regularTripsNeeded = Math.ceil(totalUsers / totalCapacity)
