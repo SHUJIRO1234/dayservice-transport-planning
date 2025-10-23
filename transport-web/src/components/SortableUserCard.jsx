@@ -16,9 +16,14 @@ const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = fals
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: isOverlay ? 'none' : transition,
-    opacity: isDragging && !isOverlay ? 0.5 : 1,
+    opacity: isDragging && !isOverlay ? 0.3 : 1,
     zIndex: isDragging || isOverlay ? 9999 : 'auto',
   };
+
+  // オーバーレイ用の場合はコンパクトモードで表示
+  if (isOverlay) {
+    compact = true;
+  }
 
   const handleAbsentToggle = (e) => {
     e.stopPropagation();
