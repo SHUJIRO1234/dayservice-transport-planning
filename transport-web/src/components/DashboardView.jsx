@@ -9,7 +9,7 @@ import { Car, Users, Clock, MapPin, Route, Accessibility, Lock } from 'lucide-re
 
 // 車両パネル用のドロップゾーン
 const VehicleTripDropZone = ({ vehicleId, tripIndex, children, isEmpty }) => {
-  const { isOver, setNodeRef } = useDroppable({
+  const { setNodeRef } = useDroppable({
     id: `trip-${vehicleId}-${tripIndex}`,
   });
 
@@ -17,24 +17,18 @@ const VehicleTripDropZone = ({ vehicleId, tripIndex, children, isEmpty }) => {
     <div
       ref={setNodeRef}
       className={`
-        min-h-[80px] rounded-lg p-2 transition-all
-        ${isOver ? 'bg-blue-100 border-2 border-blue-500 shadow-lg' : 'bg-gray-50 border border-gray-200'}
+        min-h-[80px] rounded-lg p-2 transition-all bg-gray-50 border border-gray-200
         ${isEmpty ? 'border-dashed border-2' : ''}
       `}
     >
-      {isOver && (
-        <div className="text-center text-blue-600 font-semibold py-1 bg-blue-50 rounded text-xs mb-1">
-          ドロップOK
-        </div>
-      )}
       {children}
     </div>
   );
 };
 
 // 未割り当てパネル
-const UnassignedPanel = ({ users, onToggleAbsent, onToggleOrderFixed, isDragging }) => {
-  const { isOver, setNodeRef } = useDroppable({
+const UnassignedPanel = ({ users, onToggleAbsent, onToggleOrderFixed }) => {
+  const { setNodeRef } = useDroppable({
     id: 'unassigned',
   });
 
@@ -50,16 +44,8 @@ const UnassignedPanel = ({ users, onToggleAbsent, onToggleOrderFixed, isDragging
       <CardContent className="h-[calc(100%-60px)]">
         <div
           ref={setNodeRef}
-          className={`
-            space-y-1 h-full overflow-y-auto pr-2 p-2 rounded-lg transition-all
-            ${isOver ? 'bg-blue-100 border-2 border-blue-500' : 'bg-gray-50 border border-gray-200'}
-          `}
+          className="space-y-1 h-full overflow-y-auto pr-2 p-2 rounded-lg transition-all bg-gray-50 border border-gray-200"
         >
-          {isDragging && (
-            <div className="text-center text-green-600 font-semibold py-2 bg-green-100 rounded-lg mb-2 text-sm">
-              ここにドロップして未割り当てに戻す
-            </div>
-          )}
           <SortableContext
             items={users.map(u => u.id)}
             strategy={verticalListSortingStrategy}
@@ -221,7 +207,6 @@ const DashboardView = ({
           users={unassignedUsers}
           onToggleAbsent={onToggleAbsent}
           onToggleOrderFixed={onToggleOrderFixed}
-          isDragging={!!activeId}
         />
       </div>
 
