@@ -184,6 +184,7 @@ const DashboardView = ({
   vehicleAssignments,
   unassignedUsers,
   onToggleAbsent,
+  onToggleOrderFixed,
   onOptimizeVehicle,
   activeId,
 }) => {

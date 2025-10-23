@@ -111,14 +111,29 @@ const SortableUserCard = ({ user, index, onToggleAbsent, showAbsentToggle = fals
       }`}
     >
       {showAbsentToggle && (
-        <div className="flex-shrink-0" onClick={handleAbsentToggle}>
-          <input
-            type="checkbox"
-            checked={user.isAbsent || false}
-            onChange={handleAbsentToggle}
-            className="w-4 h-4 cursor-pointer"
-            title="欠席としてマーク"
-          />
+        <div className="flex-shrink-0 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-1">
+            <input
+              type="checkbox"
+              checked={user.isAbsent || false}
+              onChange={() => onToggleAbsent && onToggleAbsent(user.id)}
+              className="w-4 h-4 cursor-pointer"
+              title="欠席としてマーク"
+            />
+            <span className="text-xs text-gray-500">欠</span>
+          </div>
+          {showUnassignedOrderFixedToggle && (
+            <div className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={user.isOrderFixed || false}
+                onChange={() => onToggleOrderFixed && onToggleOrderFixed(user.id)}
+                className="w-4 h-4 cursor-pointer"
+                title="順番を固定"
+              />
+              <span className="text-xs text-gray-500">固</span>
+            </div>
+          )}
         </div>
       )}
 

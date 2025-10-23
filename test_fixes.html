@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動作確認テスト</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .test-step {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+            color: #856404;
+        }
+        .success {
+            background: #d4edda;
+            border-left-color: #28a745;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 デイサービス送迎アプリ - 動作確認テスト</h1>
+    
+    <div class="info-box">
+        <strong>📋 修正内容:</strong>
+        <ul>
+            <li>全体ビューのクラッシュ問題を修正</li>
+            <li>未割り当てリストに「固定」チェックボックスを追加</li>
+            <li>曜日ごとのデータ分離を確認</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ テスト1: 全体ビューの動作確認</h2>
+        <div class="test-step">
+            <strong>手順1:</strong> アプリケーションを開く<br>
+            <button onclick="window.open('https://8080-i6ce68ubdkv1vx1kk87lx-14f4b140.manusvm.computer', '_blank')">アプリを開く</button>
+        </div>
+        <div class="test-step">
+            <strong>手順2:</strong> 「全体ビュー」ボタンをクリック<br>
+            <em>期待される結果: 白い画面にならず、全体ビューが表示される</em>
+        </div>
+        <div class="test-step">
+            <strong>手順3:</strong> 未割り当てリストを確認<br>
+            <em>期待される結果: 各ユーザーの左側に「欠」と「固」のチェックボックスが表示される</em>
+        </div>
+        <div class="test-step">
+            <strong>手順4:</strong> 「固」チェックボックスをクリック<br>
+            <em>期待される結果: エラーが発生せず、ユーザーカードにピンアイコンが表示される</em>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ テスト2: タブビューの動作確認</h2>
+        <div class="test-step">
+            <strong>手順1:</strong> 「タブビュー」ボタンをクリック
+        </div>
+        <div class="test-step">
+            <strong>手順2:</strong> 未割り当てリストを確認<br>
+            <em>期待される結果: 各ユーザーの左側に「欠」と「固」のチェックボックスが表示される</em>
+        </div>
+        <div class="test-step">
+            <strong>手順3:</strong> 「固」チェックボックスをクリック<br>
+            <em>期待される結果: エラーが発生せず、ユーザーカードに「順番固定」のバッジが表示される</em>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ テスト3: 曜日ごとのデータ分離の確認</h2>
+        <div class="test-step">
+            <strong>手順1:</strong> 月曜日を選択
+        </div>
+        <div class="test-step">
+            <strong>手順2:</strong> 「自動割り当て」ボタンをクリック<br>
+            <em>期待される結果: 利用者が車両に割り当てられる</em>
+        </div>
+        <div class="test-step">
+            <strong>手順3:</strong> 火曜日を選択<br>
+            <em>期待される結果: 未割り当てリストが初期状態に戻る（月曜日の割り当てが反映されない）</em>
+        </div>
+        <div class="test-step">
+            <strong>手順4:</strong> 火曜日で「自動割り当て」ボタンをクリック
+        </div>
+        <div class="test-step">
+            <strong>手順5:</strong> 月曜日を再度選択<br>
+            <em>期待される結果: 月曜日の割り当て状態が保持されている</em>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ テスト4: ブラウザコンソールの確認</h2>
+        <div class="test-step">
+            <strong>手順1:</strong> ブラウザの開発者ツールを開く (F12キー)
+        </div>
+        <div class="test-step">
+            <strong>手順2:</strong> Console タブを開く<br>
+            <em>期待される結果: エラーメッセージがない</em>
+        </div>
+        <div class="test-step">
+            <strong>手順3:</strong> Application タブ > Local Storage を開く<br>
+            <em>期待される結果: 各曜日のキーが存在する</em><br>
+            <code>transport_plan_月曜日</code><br>
+            <code>transport_plan_火曜日</code><br>
+            <code>transport_plan_水曜日</code><br>
+            など
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 トラブルシューティング</h2>
+        <div class="test-step warning">
+            <strong>問題:</strong> 全曜日に同じデータが表示される<br>
+            <strong>解決策:</strong> ブラウザの開発者ツール (F12) > Application > Local Storage > 該当のドメイン > 右クリック > Clear でローカルストレージをクリアしてページをリロード
+        </div>
+        <div class="test-step warning">
+            <strong>問題:</strong> 「固定」チェックボックスが表示されない<br>
+            <strong>解決策:</strong> ページをリロード (Ctrl+R または Cmd+R) して、ブラウザのキャッシュをクリア (Ctrl+Shift+R または Cmd+Shift+R)
+        </div>
+        <div class="test-step warning">
+            <strong>問題:</strong> 全体ビューで白い画面になる<br>
+            <strong>解決策:</strong> ブラウザのコンソールでエラーメッセージを確認し、ページをリロード
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 ローカルストレージの確認方法</h2>
+        <div class="info-box">
+            <strong>手順:</strong>
+            <ol>
+                <li>ブラウザの開発者ツールを開く (F12)</li>
+                <li>Application タブをクリック</li>
+                <li>左側のメニューから Storage > Local Storage を展開</li>
+                <li>該当のドメインをクリック</li>
+                <li>右側に表示されるキーと値を確認</li>
+            </ol>
+            <strong>確認するキー:</strong>
+            <ul>
+                <li><code>transport_plan_月曜日</code></li>
+                <li><code>transport_plan_火曜日</code></li>
+                <li><code>transport_plan_水曜日</code></li>
+                <li><code>transport_plan_木曜日</code></li>
+                <li><code>transport_plan_金曜日</code></li>
+                <li><code>transport_plan_土曜日</code></li>
+                <li><code>transport_plan_日曜日</code></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section success">
+        <h2>✨ 修正完了</h2>
+        <p>
+            以下の問題が修正されました:
+        </p>
+        <ul>
+            <li>✅ 全体ビューのクラッシュ問題</li>
+            <li>✅ 未割り当てリストの「固定」チェックボックスの動作</li>
+            <li>✅ 曜日ごとのデータ分離</li>
+        </ul>
+        <p>
+            <strong>次のステップ:</strong> 上記のテストを実行して、すべての機能が正しく動作することを確認してください。
+        </p>
+    </div>
+
+    <script>
+        console.log('テストページが読み込まれました');
+        console.log('修正されたファイル:');
+        console.log('- /home/ubuntu/dayservice-transport-app/transport-web/src/App.jsx');
+        console.log('- /home/ubuntu/dayservice-transport-app/transport-web/src/components/SortableUserCard.jsx');
+    </script>
+</body>
+</html>
+

@@ -270,10 +270,17 @@ function App() {
 
   // 順番固定のトグル
   const handleToggleOrderFixed = (userId) => {
-    const newAssignments = { ...vehicleAssignments }
-    let updated = false
+    // まず未割り当てリストで探す
+    const userInUnassigned = unassignedUsers.find(u => u.id === userId)
+    if (userInUnassigned) {
+      setUnassignedUsers(unassignedUsers.map(u => 
+        u.id === userId ? { ...u, isOrderFixed: !u.isOrderFixed } : u
+      ))
+      return
+    }
 
-    // 各車両の各便で利用者を探して更新
+    // 未割り当てリストにない場合は車両の割り当てで探す
+    const newAssignments = { ...vehicleAssignments }
     Object.keys(newAssignments).forEach(vehicleId => {
       newAssignments[vehicleId].trips = newAssignments[vehicleId].trips.map(trip => ({
         ...trip,
@@ -720,6 +727,7 @@ function App() {
               vehicleAssignments={vehicleAssignments}
               unassignedUsers={unassignedUsers}
               onToggleAbsent={handleToggleAbsent}
+              onToggleOrderFixed={handleToggleOrderFixed}
               onOptimizeVehicle={handleOptimizeVehicleRoute}
               activeId={activeId}
             />
@@ -750,6 +758,8 @@ function App() {
                           user={user} 
                           showAbsentToggle={true}
                           onToggleAbsent={handleToggleAbsent}
+                          showUnassignedOrderFixedToggle={true}
+                          onToggleOrderFixed={handleToggleOrderFixed}
                         />
                       ))}
                     </SortableContext>
