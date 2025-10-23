@@ -14,11 +14,16 @@ const TripDropZone = ({ vehicleId, tripIndex, children, isEmpty }) => {
     <div
       ref={setNodeRef}
       className={`
-        min-h-[100px] rounded-lg p-4 transition-all
-        ${isOver ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-50 border-2 border-gray-200'}
-        ${isEmpty ? 'border-dashed' : ''}
+        min-h-[150px] rounded-lg p-4 transition-all
+        ${isOver ? 'bg-green-100 border-2 border-green-500 shadow-lg' : 'bg-gray-50 border-2 border-gray-200'}
+        ${isEmpty ? 'border-dashed border-4' : ''}
       `}
     >
+      {isOver && (
+        <div className="text-center text-green-600 font-semibold py-2 bg-green-50 rounded-lg mb-2">
+          ここにドロップできます
+        </div>
+      )}
       {children}
     </div>
   );

@@ -105,7 +105,7 @@ function App() {
     localStorage.setItem(storageKey, JSON.stringify(dataToSave))
   }, [vehicleAssignments, unassignedUsers, selectedWeekday, isInitialLoad])
 
-  // 自動割り当て
+  // 自動割り当て（追加モード）
   const handleAutoAssign = () => {
     if (unassignedUsers.length === 0) return
 
@@ -134,58 +134,91 @@ function App() {
       return
     }
 
-    // 各車両の便をリセット
+    // 既存の割り当てがない車両には空の便を作成
     activeVehicles.forEach(vehicle => {
-      newAssignments[vehicle.id] = { trips: [] }
+      if (!newAssignments[vehicle.id] || !newAssignments[vehicle.id].trips || newAssignments[vehicle.id].trips.length === 0) {
+        newAssignments[vehicle.id] = { trips: [{ users: [], distance: 0, duration: 0 }] }
+      }
     })
 
     // 必要な便数を計算（車椅子と一般を別々に計算）
     const totalCapacity = activeVehicles.reduce((sum, v) => sum + v.capacity, 0)
     const totalWheelchairCapacity = activeVehicles.reduce((sum, v) => sum + v.wheelchairCapacity, 0)
 
-    // 固定ユーザーを各車両の最初に配置
+    // 固定ユーザーを各車両の新しい便に配置
     let fixedUserIndex = 0
     activeVehicles.forEach(vehicle => {
       if (fixedUserIndex < fixedUsers.length) {
         newAssignments[vehicle.id].trips.push({ users: [fixedUsers[fixedUserIndex]], distance: 0, duration: 0 })
         fixedUserIndex++
-      } else {
-        newAssignments[vehicle.id].trips.push({ users: [], distance: 0, duration: 0 })
       }
     })
 
-    // 必要な便数を計算
-    const totalUsers = wheelchairUsers.length + regularUsers.length
-    const wheelchairTripsNeeded = Math.ceil(wheelchairUsers.length / totalWheelchairCapacity)
-    const regularTripsNeeded = Math.ceil(totalUsers / totalCapacity)
-    const tripsNeeded = Math.max(wheelchairTripsNeeded, regularTripsNeeded)
+    // 各車両の空き容量を計算
+    const vehicleCapacities = activeVehicles.map(vehicle => {
+      const trips = newAssignments[vehicle.id].trips
+      const lastTrip = trips[trips.length - 1]
+      const currentUsers = lastTrip.users.length
+      const wheelchairCount = lastTrip.users.filter(u => u.wheelchair).length
+      
+      return {
+        vehicleId: vehicle.id,
+        capacity: vehicle.capacity,
+        wheelchairCapacity: vehicle.wheelchairCapacity,
+        availableSeats: vehicle.capacity - currentUsers,
+        availableWheelchairSeats: vehicle.wheelchairCapacity - wheelchairCount,
+        tripIndex: trips.length - 1
+      }
+    })
 
-    // 柔軟な利用者を割り当て
-    for (let tripIndex = 0; tripIndex < tripsNeeded; tripIndex++) {
-      activeVehicles.forEach(vehicle => {
-        // 第1便はすでに作成済み
-        if (tripIndex > 0 && !newAssignments[vehicle.id].trips[tripIndex]) {
+    // 柔軟な利用者を割り当て（車椅子優先）
+    while (wheelchairUsers.length > 0 || regularUsers.length > 0) {
+      let assigned = false
+
+      // 車椅子ユーザーを割り当て
+      if (wheelchairUsers.length > 0) {
+        for (const cap of vehicleCapacities) {
+          if (cap.availableWheelchairSeats > 0 && cap.availableSeats > 0) {
+            const user = wheelchairUsers.shift()
+            const vehicle = activeVehicles.find(v => v.id === cap.vehicleId)
+            newAssignments[cap.vehicleId].trips[cap.tripIndex].users.push(user)
+            cap.availableWheelchairSeats--
+            cap.availableSeats--
+            assigned = true
+            break
+          }
+        }
+      }
+
+      // 一般ユーザーを割り当て
+      if (!assigned && regularUsers.length > 0) {
+        for (const cap of vehicleCapacities) {
+          if (cap.availableSeats > 0) {
+            const user = regularUsers.shift()
+            newAssignments[cap.vehicleId].trips[cap.tripIndex].users.push(user)
+            cap.availableSeats--
+            assigned = true
+            break
+          }
+        }
+      }
+
+      // すべての車両が満車の場合、新しい便を作成
+      if (!assigned) {
+        activeVehicles.forEach(vehicle => {
           newAssignments[vehicle.id].trips.push({ users: [], distance: 0, duration: 0 })
-        }
+        })
+        
+        // 容量情報をリセット
+        vehicleCapacities.forEach((cap, index) => {
+          const vehicle = activeVehicles[index]
+          cap.availableSeats = vehicle.capacity
+          cap.availableWheelchairSeats = vehicle.wheelchairCapacity
+          cap.tripIndex++
+        })
+      }
 
-        const tripUsers = newAssignments[vehicle.id].trips[tripIndex].users
-
-        // 車椅子ユーザーを割り当て
-        let wheelchairAssigned = tripUsers.filter(u => u.wheelchair).length
-        while (wheelchairUsers.length > 0 && wheelchairAssigned < vehicle.wheelchairCapacity) {
-          const user = wheelchairUsers.shift()
-          tripUsers.push(user)
-          wheelchairAssigned++
-        }
-
-        // 一般ユーザーを割り当て
-        while (regularUsers.length > 0 && tripUsers.length < vehicle.capacity) {
-          const user = regularUsers.shift()
-          tripUsers.push(user)
-        }
-      })
-
-      // すべての利用者が割り当てられたら終了
+      // 全て割り当て完了
       if (wheelchairUsers.length === 0 && regularUsers.length === 0) {
         break
       }
@@ -380,6 +413,7 @@ function App() {
     // overがない場合は何もしない（先にチェック）
     if (!over) {
       console.log('ドロップ失敗: ドロップゾーンが見つかりませんでした。元の位置に残ります。', { activeId: active.id })
+      alert('ドロップ失敗: 青いドロップゾーンにドロップしてください。利用者は元の位置に残りました。')
       setActiveId(null)
       return
     }
