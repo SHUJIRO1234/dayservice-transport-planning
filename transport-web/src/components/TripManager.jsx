@@ -38,7 +38,8 @@ const TripManager = ({
   onAddTrip, 
   onRemoveTrip, 
   onReorderUsers,
-  onToggleOrderFixed
+  onToggleOrderFixed,
+  onOptimizeTrip
 }) => {
   return (
     <div className="space-y-4">
@@ -52,15 +53,27 @@ const TripManager = ({
                 時間: {trip.duration || 0}分
               </span>
             </div>
-            {trips.length > 1 && (
-              <Button
-                onClick={() => onRemoveTrip(vehicleId, tripIndex)}
-                size="sm"
-                variant="destructive"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {trip.users.length > 1 && (
+                <Button
+                  onClick={() => onOptimizeTrip(vehicleId, tripIndex)}
+                  size="sm"
+                  variant="outline"
+                >
+                  <MapPin className="w-4 h-4 mr-1" />
+                  最適化
+                </Button>
+              )}
+              {trips.length > 1 && (
+                <Button
+                  onClick={() => onRemoveTrip(vehicleId, tripIndex)}
+                  size="sm"
+                  variant="destructive"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           <TripDropZone 

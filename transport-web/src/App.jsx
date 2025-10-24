@@ -975,6 +975,7 @@ function App() {
                           onRemoveTrip={handleRemoveTrip}
                           onReorderUsers={handleReorderUsers}
                           onToggleOrderFixed={handleToggleOrderFixed}
+                          onOptimizeTrip={handleOptimizeTrip}
                         />
                       </>
                     )}
