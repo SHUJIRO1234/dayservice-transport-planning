@@ -333,6 +333,26 @@ function App() {
     setVehicleAssignments(newAssignments)
   }
 
+  // ルートを最適化（便ごと）
+  const handleOptimizeTrip = (vehicleId, tripIndex) => {
+    const assignment = vehicleAssignments[vehicleId]
+    if (!assignment || !facility) return
+
+    const trip = assignment.trips[tripIndex]
+    if (!trip || trip.users.length === 0) return
+
+    const newAssignments = { ...vehicleAssignments }
+    const result = optimizeRoute(facility, trip.users)
+    
+    newAssignments[vehicleId].trips[tripIndex] = {
+      users: result.order,
+      distance: result.totalDistance,
+      duration: result.estimatedTime
+    }
+
+    setVehicleAssignments(newAssignments)
+  }
+
   // 車両の有効/無効切り替え
   const handleToggleVehicle = (vehicleId) => {
     setVehicles(vehicles.map(v => 
