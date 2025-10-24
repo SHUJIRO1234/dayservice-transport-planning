@@ -41,6 +41,42 @@ const wheelchairIcon = new L.Icon({
   shadowSize: [41, 41]
 })
 
+// 番号付きマーカーを作成する関数
+const createNumberedIcon = (number, color = 'blue') => {
+  return L.divIcon({
+    className: 'custom-numbered-icon',
+    html: `
+      <div style="
+        background-color: ${color};
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 3px solid white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        font-size: 14px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      ">${number}</div>
+    `,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    popupAnchor: [0, -15]
+  })
+}
+
+// 車両ごとの色
+const vehicleColors = [
+  '#3B82F6', // 青
+  '#EF4444', // 赤
+  '#10B981', // 緑
+  '#F59E0B', // オレンジ
+  '#8B5CF6', // 紫
+  '#EC4899', // ピンク
+]
+
 // 地図の中心を調整するコンポーネント
 function MapBoundsUpdater({ locations }) {
   const map = useMap()
@@ -55,7 +91,7 @@ function MapBoundsUpdater({ locations }) {
   return null
 }
 
-export default function TransportMap({ facility, users, route = null }) {
+export default function TransportMap({ facility, users, route = null, vehicleAssignments = null, vehicles = null }) {
   const [locations, setLocations] = useState([])
 
   useEffect(() => {
@@ -150,8 +186,64 @@ export default function TransportMap({ facility, users, route = null }) {
           </Marker>
         ))}
 
-        {/* ルートの表示（将来実装） */}
-        {route && route.length > 0 && (
+        {/* 送迎ルートの表示 */}
+        {vehicleAssignments && vehicles && facilityLocation && (
+          <>
+            {vehicles.filter(v => v.isActive).map((vehicle, vehicleIndex) => {
+              const assignment = vehicleAssignments[vehicle.id]
+              if (!assignment || !assignment.trips) return null
+
+              const color = vehicleColors[vehicleIndex % vehicleColors.length]
+
+              return assignment.trips.map((trip, tripIndex) => {
+                if (!trip.users || trip.users.length === 0) return null
+
+                // ルートの座標配列を作成：施設 → 利用者たち → 施設
+                const routePositions = [
+                  [facilityLocation.lat, facilityLocation.lng],
+                  ...trip.users.map(user => [user.lat, user.lng]),
+                  [facilityLocation.lat, facilityLocation.lng]
+                ]
+
+                return (
+                  <div key={`${vehicle.id}-${tripIndex}`}>
+                    {/* ルートライン */}
+                    <Polyline
+                      positions={routePositions}
+                      color={color}
+                      weight={4}
+                      opacity={0.6}
+                      dashArray={tripIndex > 0 ? '10, 10' : undefined}
+                    />
+
+                    {/* 番号付きマーカー */}
+                    {trip.users.map((user, userIndex) => (
+                      <Marker
+                        key={`${vehicle.id}-${tripIndex}-${user.id}`}
+                        position={[user.lat, user.lng]}
+                        icon={createNumberedIcon(userIndex + 1, color)}
+                      >
+                        <Popup>
+                          <div className="font-semibold">{user.name}</div>
+                          <div className="text-sm text-gray-600">{user.address}</div>
+                          <div className="text-sm font-semibold mt-1" style={{ color }}>
+                            {vehicle.name} - 第{tripIndex + 1}便 - {userIndex + 1}番目
+                          </div>
+                          {user.wheelchair && (
+                            <div className="text-xs text-purple-600 mt-1">🦽 車椅子対応</div>
+                          )}
+                        </Popup>
+                      </Marker>
+                    ))}
+                  </div>
+                )
+              })
+            })}
+          </>
+        )}
+
+        {/* ルートが指定されている場合（互換性のため） */}
+        {route && route.length > 0 && !vehicleAssignments && (
           <Polyline
             positions={route}
             color="blue"

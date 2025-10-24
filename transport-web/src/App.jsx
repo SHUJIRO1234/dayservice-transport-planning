@@ -854,6 +854,8 @@ function App() {
                   users={allAssignedUsers}
                   facility={facility}
                   optimizedRoute={[]}
+                  vehicleAssignments={vehicleAssignments}
+                  vehicles={vehicles}
                 />
               </CardContent>
             </Card>
