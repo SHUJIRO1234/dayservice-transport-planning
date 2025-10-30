@@ -1,0 +1,433 @@
+/* 印刷用スタイル */
+
+@media print {
+  /* 印刷時に不要な要素を非表示 */
+  .no-print {
+    display: none !important;
+  }
+  
+  /* ボタンやコントロールを非表示 */
+  button,
+  input[type="checkbox"],
+  .controls {
+    display: none !important;
+  }
+  
+  /* ページ設定 */
+  @page {
+    size: A4;
+    margin: 15mm 10mm;
+  }
+  
+  /* 基本スタイル */
+  body {
+    font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+    font-size: 10pt;
+    line-height: 1.6;
+    color: #000;
+    background: #fff;
+  }
+  
+  /* 改ページ制御 */
+  .page-break {
+    page-break-after: always;
+  }
+  
+  .avoid-break {
+    page-break-inside: avoid;
+  }
+  
+  /* 印刷用ヘッダー */
+  .print-header {
+    text-align: center;
+    border-bottom: 3px double #333;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .print-header h1 {
+    font-size: 18pt;
+    font-weight: bold;
+    margin: 0 0 5px 0;
+  }
+  
+  .print-header .date {
+    font-size: 12pt;
+    color: #666;
+  }
+  
+  /* 車両セクション */
+  .vehicle-section {
+    margin-bottom: 30px;
+    page-break-inside: avoid;
+  }
+  
+  .vehicle-header {
+    background: #f0f0f0;
+    border: 2px solid #333;
+    padding: 10px;
+    margin-bottom: 10px;
+    font-weight: bold;
+    font-size: 12pt;
+  }
+  
+  .vehicle-info {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    font-size: 10pt;
+  }
+  
+  /* 便セクション */
+  .trip-section {
+    margin-bottom: 20px;
+    border-left: 3px solid #666;
+    padding-left: 10px;
+  }
+  
+  .trip-header {
+    font-weight: bold;
+    font-size: 11pt;
+    margin-bottom: 10px;
+    color: #333;
+  }
+  
+  /* 利用者カード */
+  .user-card {
+    border: 1px solid #ccc;
+    padding: 8px;
+    margin-bottom: 8px;
+    background: #fff;
+    page-break-inside: avoid;
+  }
+  
+  .user-card-header {
+    font-weight: bold;
+    font-size: 11pt;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .user-number {
+    display: inline-block;
+    width: 25px;
+    height: 25px;
+    line-height: 25px;
+    text-align: center;
+    background: #333;
+    color: #fff;
+    border-radius: 50%;
+    margin-right: 8px;
+    font-size: 10pt;
+  }
+  
+  .wheelchair-badge {
+    display: inline-block;
+    background: #ff6b6b;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 9pt;
+    margin-left: 8px;
+  }
+  
+  .user-card-body {
+    margin-left: 33px;
+    font-size: 10pt;
+  }
+  
+  .user-card-row {
+    margin-bottom: 3px;
+  }
+  
+  .user-card-label {
+    display: inline-block;
+    width: 80px;
+    color: #666;
+  }
+  
+  /* テーブルスタイル */
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+  }
+  
+  .print-table th,
+  .print-table td {
+    border: 1px solid #ccc;
+    padding: 6px;
+    text-align: left;
+  }
+  
+  .print-table th {
+    background: #f0f0f0;
+    font-weight: bold;
+  }
+  
+  /* フッター */
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 9pt;
+    color: #999;
+    border-top: 1px solid #ccc;
+    padding-top: 5px;
+  }
+  
+  /* 運行指示書専用スタイル */
+  .instruction-card {
+    border: 2px solid #333;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #fff;
+    page-break-inside: avoid;
+  }
+  
+  .instruction-header {
+    font-weight: bold;
+    font-size: 12pt;
+    border-bottom: 2px solid #333;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+  }
+  
+  .instruction-body {
+    font-size: 10pt;
+  }
+  
+  .instruction-row {
+    margin-bottom: 5px;
+    display: flex;
+  }
+  
+  .instruction-label {
+    display: inline-block;
+    width: 100px;
+    font-weight: bold;
+    color: #333;
+  }
+  
+  .instruction-value {
+    flex: 1;
+  }
+  
+  .special-note {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    padding: 8px;
+    margin-top: 8px;
+    border-radius: 3px;
+  }
+  
+  .special-note-label {
+    font-weight: bold;
+    color: #856404;
+    margin-bottom: 3px;
+  }
+  
+  /* 地図スタイル */
+  .map-container {
+    width: 100%;
+    height: 400px;
+    border: 2px solid #333;
+    margin-bottom: 15px;
+    page-break-inside: avoid;
+  }
+  
+  .route-list {
+    font-size: 10pt;
+  }
+  
+  .route-list-item {
+    margin-bottom: 5px;
+    padding-left: 10px;
+  }
+  
+  /* ユーティリティクラス */
+  .text-center {
+    text-align: center;
+  }
+  
+  .text-right {
+    text-align: right;
+  }
+  
+  .font-bold {
+    font-weight: bold;
+  }
+  
+  .mb-10 {
+    margin-bottom: 10px;
+  }
+  
+  .mb-20 {
+    margin-bottom: 20px;
+  }
+}
+
+/* 印刷プレビュー用スタイル（画面表示） */
+.print-preview {
+  max-width: 210mm;
+  margin: 20px auto;
+  padding: 20px;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.print-preview .print-header {
+  text-align: center;
+  border-bottom: 3px double #333;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.print-preview .print-header h1 {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0 0 5px 0;
+}
+
+.print-preview .print-header .date {
+  font-size: 16px;
+  color: #666;
+}
+
+.print-preview .vehicle-section {
+  margin-bottom: 30px;
+}
+
+.print-preview .vehicle-header {
+  background: #f0f0f0;
+  border: 2px solid #333;
+  padding: 10px;
+  margin-bottom: 10px;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.print-preview .vehicle-info {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.print-preview .trip-section {
+  margin-bottom: 20px;
+  border-left: 3px solid #666;
+  padding-left: 10px;
+}
+
+.print-preview .trip-header {
+  font-weight: bold;
+  font-size: 15px;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.print-preview .user-card {
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+
+.print-preview .user-card-header {
+  font-weight: bold;
+  font-size: 15px;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+}
+
+.print-preview .user-number {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+  text-align: center;
+  background: #333;
+  color: #fff;
+  border-radius: 50%;
+  margin-right: 10px;
+  font-size: 14px;
+}
+
+.print-preview .wheelchair-badge {
+  display: inline-block;
+  background: #ff6b6b;
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 3px;
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+.print-preview .user-card-body {
+  margin-left: 40px;
+  font-size: 14px;
+}
+
+.print-preview .user-card-row {
+  margin-bottom: 5px;
+}
+
+.print-preview .user-card-label {
+  display: inline-block;
+  width: 100px;
+  color: #666;
+}
+
+.print-preview .instruction-card {
+  border: 2px solid #333;
+  padding: 15px;
+  margin-bottom: 15px;
+  background: #fff;
+}
+
+.print-preview .instruction-header {
+  font-weight: bold;
+  font-size: 16px;
+  border-bottom: 2px solid #333;
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+}
+
+.print-preview .instruction-body {
+  font-size: 14px;
+}
+
+.print-preview .instruction-row {
+  margin-bottom: 8px;
+  display: flex;
+}
+
+.print-preview .instruction-label {
+  display: inline-block;
+  width: 120px;
+  font-weight: bold;
+  color: #333;
+}
+
+.print-preview .instruction-value {
+  flex: 1;
+}
+
+.print-preview .special-note {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 3px;
+}
+
+.print-preview .special-note-label {
+  font-weight: bold;
+  color: #856404;
+  margin-bottom: 5px;
+}
+

@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>印刷プレビュー - デイサービス送迎計画</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+      background: #f5f5f5;
+    }
+    
+    #root {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .close-button {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      z-index: 1000;
+    }
+    
+    .close-button:hover {
+      background: #555;
+    }
+    
+    @media print {
+      body {
+        background: #fff;
+        padding: 0;
+      }
+      
+      #root {
+        max-width: 100%;
+        box-shadow: none;
+        padding: 0;
+      }
+      
+      .close-button {
+        display: none;
+      }
+    }
+    
+    /* 印刷用スタイルをインライン化 */
+    @media print {
+      @page {
+        size: A4;
+        margin: 15mm 10mm;
+      }
+      
+      .page-break {
+        page-break-after: always;
+      }
+      
+      .avoid-break {
+        page-break-inside: avoid;
+      }
+      
+      .print-header {
+        text-align: center;
+        border-bottom: 3px double #333;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+      }
+      
+      .print-header h1 {
+        font-size: 18pt;
+        font-weight: bold;
+        margin: 0 0 5px 0;
+      }
+      
+      .print-header .date {
+        font-size: 12pt;
+        color: #666;
+      }
+      
+      .vehicle-section {
+        margin-bottom: 30px;
+      }
+      
+      .vehicle-header {
+        background: #f0f0f0;
+        border: 2px solid #333;
+        padding: 10px;
+        margin-bottom: 10px;
+        font-weight: bold;
+        font-size: 12pt;
+      }
+      
+      .vehicle-info {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 5px;
+        font-size: 10pt;
+      }
+      
+      .trip-section {
+        margin-bottom: 20px;
+        border-left: 3px solid #666;
+        padding-left: 10px;
+      }
+      
+      .trip-header {
+        font-weight: bold;
+        font-size: 11pt;
+        margin-bottom: 10px;
+        color: #333;
+      }
+      
+      .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+      }
+      
+      .print-table th,
+      .print-table td {
+        border: 1px solid #ccc;
+        padding: 6px;
+        text-align: left;
+        font-size: 10pt;
+      }
+      
+      .print-table th {
+        background: #f0f0f0;
+        font-weight: bold;
+      }
+      
+      .text-center {
+        text-align: center;
+      }
+      
+      .font-bold {
+        font-weight: bold;
+      }
+      
+      .instruction-card {
+        border: 2px solid #333;
+        padding: 12px;
+        margin-bottom: 12px;
+        background: #fff;
+      }
+      
+      .instruction-header {
+        font-weight: bold;
+        font-size: 12pt;
+        border-bottom: 2px solid #333;
+        padding-bottom: 5px;
+        margin-bottom: 10px;
+      }
+      
+      .instruction-body {
+        font-size: 10pt;
+      }
+      
+      .instruction-row {
+        margin-bottom: 5px;
+        display: flex;
+      }
+      
+      .instruction-label {
+        display: inline-block;
+        width: 100px;
+        font-weight: bold;
+        color: #333;
+      }
+      
+      .instruction-value {
+        flex: 1;
+      }
+      
+      .user-card-header {
+        font-weight: bold;
+        font-size: 11pt;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+      }
+      
+      .user-number {
+        display: inline-block;
+        width: 25px;
+        height: 25px;
+        line-height: 25px;
+        text-align: center;
+        background: #333;
+        color: #fff;
+        border-radius: 50%;
+        margin-right: 8px;
+        font-size: 10pt;
+      }
+      
+      .wheelchair-badge {
+        display: inline-block;
+        background: #ff6b6b;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 9pt;
+        margin-left: 8px;
+      }
+      
+      .user-card-body {
+        margin-left: 33px;
+        font-size: 10pt;
+      }
+      
+      .special-note {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        padding: 8px;
+        margin-top: 8px;
+        border-radius: 3px;
+      }
+      
+      .special-note-label {
+        font-weight: bold;
+        color: #856404;
+        margin-bottom: 3px;
+      }
+      
+      .mb-20 {
+        margin-bottom: 20px;
+      }
+      
+      .print-footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        text-align: center;
+        font-size: 9pt;
+        color: #999;
+        border-top: 1px solid #ccc;
+        padding-top: 5px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button class="close-button" onclick="window.close()">閉じる</button>
+  <div id="root">読み込み中...</div>
+  
+  <script>
+    // localStorageからデータを取得
+    const printData = JSON.parse(localStorage.getItem('printData') || '{}')
+    
+    if (!printData.printType) {
+      document.getElementById('root').innerHTML = '<p>データが見つかりません。</p>'
+    } else {
+      // データを表示
+      renderPrintContent(printData)
+      
+      // 印刷ダイアログを自動的に表示
+      setTimeout(() => {
+        window.print()
+      }, 500)
+    }
+    
+    function renderPrintContent(data) {
+      const { printType, vehicles, selectedDay, users } = data
+      const root = document.getElementById('root')
+      
+      if (printType === 'plan') {
+        root.innerHTML = renderTransportPlan(vehicles, selectedDay, users)
+      } else if (printType === 'instruction') {
+        root.innerHTML = renderDriverInstruction(vehicles, selectedDay, users)
+      }
+    }
+    
+    function renderTransportPlan(vehicles, selectedDay, users) {
+      const currentDate = new Date()
+      const dateStr = `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月${currentDate.getDate()}日`
+      
+      let html = `
+        <div class="print-header">
+          <h1>デイサービス送迎計画表</h1>
+          <div class="date">${dateStr}（${selectedDay}）</div>
+        </div>
+      `
+      
+      vehicles.forEach(vehicle => {
+        if (!vehicle.inUse) return
+        
+        const vehicleUsers = users.filter(user => user.vehicleId === vehicle.id)
+        if (vehicleUsers.length === 0) return
+        
+        const tripGroups = {}
+        vehicleUsers.forEach(user => {
+          const tripIndex = user.tripIndex || 0
+          if (!tripGroups[tripIndex]) {
+            tripGroups[tripIndex] = []
+          }
+          tripGroups[tripIndex].push(user)
+        })
+        
+        html += `
+          <div class="vehicle-section avoid-break">
+            <div class="vehicle-header">
+              <div>【${vehicle.name}】</div>
+              <div class="vehicle-info">
+                <span>担当: ${vehicle.driver}</span>
+                <span>定員: ${vehicleUsers.length}/${vehicle.capacity}名</span>
+                <span>車椅子: ${vehicleUsers.filter(u => u.wheelchair).length}/${vehicle.wheelchairCapacity}台</span>
+              </div>
+            </div>
+        `
+        
+        Object.keys(tripGroups).sort((a, b) => Number(a) - Number(b)).forEach(tripIndex => {
+          const tripUsers = tripGroups[tripIndex]
+          const tripNum = Number(tripIndex) + 1
+          const distance = vehicle.trips?.[tripIndex]?.distance || 0
+          const duration = vehicle.trips?.[tripIndex]?.duration || 0
+          
+          html += `
+            <div class="trip-section">
+              <div class="trip-header">
+                第${tripNum}便（${tripUsers.length}名
+                ${distance > 0 ? ` / 距離: ${distance.toFixed(2)} km` : ''}
+                ${duration > 0 ? ` / 時間: ${Math.round(duration)}分` : ''}）
+              </div>
+              <table class="print-table">
+                <thead>
+                  <tr>
+                    <th style="width: 40px">順序</th>
+                    <th style="width: 120px">氏名</th>
+                    <th>住所</th>
+                    <th style="width: 80px">車椅子</th>
+                    <th style="width: 100px">特記事項</th>
+                  </tr>
+                </thead>
+                <tbody>
+          `
+          
+          tripUsers.forEach((user, index) => {
+            html += `
+              <tr>
+                <td class="text-center">${index + 1}</td>
+                <td class="font-bold">${user.name}</td>
+                <td>${user.address}</td>
+                <td class="text-center">${user.wheelchair ? '○' : ''}</td>
+                <td>${user.dementia ? '認知症あり' : ''}</td>
+              </tr>
+            `
+          })
+          
+          html += `
+                </tbody>
+              </table>
+            </div>
+          `
+        })
+        
+        html += '</div>'
+      })
+      
+      html += '<div class="print-footer">デイサービス送迎計画 - 運行管理システム</div>'
+      
+      return html
+    }
+    
+    function renderDriverInstruction(vehicles, selectedDay, users) {
+      const currentDate = new Date()
+      const dateStr = `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月${currentDate.getDate()}日`
+      
+      let html = ''
+      
+      vehicles.forEach(vehicle => {
+        if (!vehicle.inUse) return
+        
+        const vehicleUsers = users.filter(user => user.vehicleId === vehicle.id)
+        if (vehicleUsers.length === 0) return
+        
+        const tripGroups = {}
+        vehicleUsers.forEach(user => {
+          const tripIndex = user.tripIndex || 0
+          if (!tripGroups[tripIndex]) {
+            tripGroups[tripIndex] = []
+          }
+          tripGroups[tripIndex].push(user)
+        })
+        
+        html += `
+          <div class="page-break">
+            <div class="print-header">
+              <h1>運行指示書 - ${vehicle.name}</h1>
+              <div class="date">
+                担当: ${vehicle.driver}<br />
+                ${dateStr}（${selectedDay}）
+              </div>
+            </div>
+        `
+        
+        Object.keys(tripGroups).sort((a, b) => Number(a) - Number(b)).forEach(tripIndex => {
+          const tripUsers = tripGroups[tripIndex]
+          const tripNum = Number(tripIndex) + 1
+          const distance = vehicle.trips?.[tripIndex]?.distance || 0
+          const duration = vehicle.trips?.[tripIndex]?.duration || 0
+          const departureTime = tripUsers[0]?.pickupTime || '08:00'
+          const arrivalTime = duration > 0 ? calculateArrivalTime(departureTime, duration) : '未設定'
+          
+          html += `
+            <div class="mb-20">
+              <div class="instruction-header">【第${tripNum}便】</div>
+              <div class="instruction-body mb-20">
+                <div class="instruction-row">
+                  <span class="instruction-label">出発時刻:</span>
+                  <span class="instruction-value">${departureTime}</span>
+                </div>
+                <div class="instruction-row">
+                  <span class="instruction-label">総距離:</span>
+                  <span class="instruction-value">${distance.toFixed(2)} km</span>
+                </div>
+                <div class="instruction-row">
+                  <span class="instruction-label">所要時間:</span>
+                  <span class="instruction-value">約${Math.round(duration)}分</span>
+                </div>
+                <div class="instruction-row">
+                  <span class="instruction-label">施設到着予定:</span>
+                  <span class="instruction-value">${arrivalTime}</span>
+                </div>
+              </div>
+          `
+          
+          tripUsers.forEach((user, index) => {
+            html += `
+              <div class="instruction-card avoid-break">
+                <div class="user-card-header">
+                  <span class="user-number">${index + 1}</span>
+                  <span>${user.name} 様</span>
+                  ${user.wheelchair ? '<span class="wheelchair-badge">車椅子対応</span>' : ''}
+                </div>
+                <div class="user-card-body">
+                  <div class="instruction-row">
+                    <span class="instruction-label">住所:</span>
+                    <span class="instruction-value">${user.address}</span>
+                  </div>
+                  <div class="instruction-row">
+                    <span class="instruction-label">送迎時間:</span>
+                    <span class="instruction-value">${user.pickupTime || '08:00'}</span>
+                  </div>
+            `
+            
+            if (user.dementia || user.notes) {
+              html += `
+                  <div class="special-note">
+                    <div class="special-note-label">⚠ 特記事項</div>
+                    <div>
+                      ${user.dementia ? '<div>• 認知症の方です。丁寧な対応をお願いします。</div>' : ''}
+                      ${user.notes ? `<div>• ${user.notes}</div>` : ''}
+                    </div>
+                  </div>
+              `
+            }
+            
+            html += `
+                </div>
+              </div>
+            `
+          })
+          
+          html += '</div>'
+        })
+        
+        html += '<div class="print-footer">デイサービス送迎計画 - 運行管理システム</div></div>'
+      })
+      
+      return html
+    }
+    
+    function calculateArrivalTime(departureTime, durationMinutes) {
+      const [hours, minutes] = departureTime.split(':').map(Number)
+      const totalMinutes = hours * 60 + minutes + durationMinutes
+      const arrivalHours = Math.floor(totalMinutes / 60)
+      const arrivalMinutes = totalMinutes % 60
+      return `${String(arrivalHours).padStart(2, '0')}:${String(arrivalMinutes).padStart(2, '0')}`
+    }
+  </script>
+</body>
+</html>
+
