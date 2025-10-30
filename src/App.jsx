@@ -4,7 +4,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Calendar, MapPin, Users, Car, Accessibility, Clock, Route, Navigation, RotateCcw, Trash2, Lock, Printer } from 'lucide-react'
+import { Calendar, MapPin, Users, Car, Accessibility, Clock, Route, Navigation, RotateCcw, Trash2, Lock, Printer, Database } from 'lucide-react'
 import TransportMap from './components/TransportMap.jsx'
 import VehicleTabs from './components/VehicleTabs.jsx'
 import TripManager from './components/TripManager.jsx'
@@ -13,6 +13,7 @@ import DashboardView from './components/DashboardView.jsx'
 import TransportPlanPrint from './components/print/TransportPlanPrint.jsx'
 import DriverInstructionPrint from './components/print/DriverInstructionPrint.jsx'
 import PrintButton from './components/PrintButton.jsx'
+import UserManagement from './components/UserManagement.jsx'
 import { optimizeRoute, recalculateRoute } from './utils/routeOptimization.js'
 import { assignUsersToVehiclesWithClustering } from './utils/geographicClustering.js'
 import { weeklyData, vehicles as vehiclesData, facility as facilityData } from './weeklyData.js'
@@ -59,6 +60,7 @@ function App() {
   const [vehicleAssignments, setVehicleAssignments] = useState({})
   const [unassignedUsers, setUnassignedUsers] = useState([])
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [showUserManagement, setShowUserManagement] = useState(false)
 
   const weekdays = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日']
 
@@ -689,11 +691,21 @@ function App() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <div className="container mx-auto p-4 md:p-6">
           {/* ヘッダー */}
-          <div className="mb-6">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-              デイサービス送迎計画 - 運行管理システム
-            </h1>
-            <p className="text-gray-600">効率的な送迎ルートの計画と管理</p>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
+                デイサービス送迎計画 - 運行管理システム
+              </h1>
+              <p className="text-gray-600">効率的な送迎ルートの計画と管理</p>
+            </div>
+            <Button 
+              onClick={() => setShowUserManagement(true)}
+              className="flex items-center gap-2"
+              size="lg"
+            >
+              <Database className="w-5 h-5" />
+              利用者管理
+            </Button>
           </div>
 
           {/* 曜日選択タブ */}
@@ -1000,6 +1012,11 @@ function App() {
           <SortableUserCard user={activeUser} isOverlay={true} />
         ) : null}
       </DragOverlay>
+
+      {/* 利用者管理モーダル */}
+      {showUserManagement && (
+        <UserManagement onClose={() => setShowUserManagement(false)} />
+      )}
     </DndContext>
   )
 }
