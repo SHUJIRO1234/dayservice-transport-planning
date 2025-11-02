@@ -18,6 +18,7 @@ import UsageRecordManager from './components/UsageRecordManager.jsx';
 import ServiceCodeManager from './components/ServiceCodeManager.jsx';import { optimizeRoute, recalculateRoute } from './utils/routeOptimization.js'
 import { assignUsersToVehiclesWithClustering } from './utils/geographicClustering.js'
 import { weeklyData, vehicles as vehiclesData, facility as facilityData } from './weeklyData.js'
+import { integrateUserData, watchUserMasterChanges, triggerUserMasterUpdate } from './utils/userDataIntegration.js'
 import './App.css'
 import './styles/print.css'
 
@@ -101,14 +102,30 @@ function App() {
     const storageKey = `transport_plan_${selectedWeekday}`
     const saved = localStorage.getItem(storageKey)
     
+    // 利用者マスタデータとサンプルデータを統合
+    const integratedWeeklyData = integrateUserData(weeklyData)
+    
     if (saved) {
-      // 保存されたデータを読み込む
+      // 保存されたデータを読み込み、統合データとマージ
       const savedData = JSON.parse(saved)
-      setUnassignedUsers(savedData.unassignedUsers || [])
+      const integratedUsers = integratedWeeklyData[selectedWeekday] || []
+      
+      // 既存のユーザーIDを収集
+      const existingUserIds = new Set()
+      savedData.unassignedUsers?.forEach(u => existingUserIds.add(u.id))
+      Object.values(savedData.vehicleAssignments || {}).forEach(assignment => {
+        assignment.trips?.forEach(trip => {
+          trip.users?.forEach(u => existingUserIds.add(u.id))
+        })
+      })
+      
+      // 新しいユーザーを未割り当てに追加
+      const newUsers = integratedUsers.filter(u => !existingUserIds.has(u.id))
+      setUnassignedUsers([...(savedData.unassignedUsers || []), ...newUsers])
       setVehicleAssignments(savedData.vehicleAssignments || {})
     } else {
-      // 保存されたデータがない場合は初期化
-      const users = weeklyData[selectedWeekday] || []
+      // 保存されたデータがない場合は統合データで初期化
+      const users = integratedWeeklyData[selectedWeekday] || []
       setUnassignedUsers(users)
       
       const initialAssignments = {}
@@ -122,6 +139,36 @@ function App() {
     
     // 次のレンダリングでフラグを下ろす
     setTimeout(() => setIsInitialLoad(false), 0)
+  }, [selectedWeekday])
+  
+  // 利用者マスタの変更を監視
+  useEffect(() => {
+    const handleUserMasterUpdate = () => {
+      // 利用者マスタが更新されたら、データを再読み込み
+      const integratedWeeklyData = integrateUserData(weeklyData)
+      const users = integratedWeeklyData[selectedWeekday] || []
+      
+      // 既存の割り当てを保持しつつ、新しいユーザーを未割り当てに追加
+      const existingUserIds = new Set()
+      
+      // 未割り当てリストのユーザーID
+      unassignedUsers.forEach(u => existingUserIds.add(u.id))
+      
+      // 割り当て済みのユーザーID
+      Object.values(vehicleAssignments).forEach(assignment => {
+        assignment.trips?.forEach(trip => {
+          trip.users?.forEach(u => existingUserIds.add(u.id))
+        })
+      })
+      
+      // 新しいユーザーのみを追加
+      const newUsers = users.filter(u => !existingUserIds.has(u.id))
+      if (newUsers.length > 0) {
+        setUnassignedUsers(prev => [...prev, ...newUsers])
+      }
+    }
+    
+    watchUserMasterChanges(handleUserMasterUpdate)
   }, [selectedWeekday])
   
   // 変更をローカルストレージに自動保存（初期読み込み時はスキップ）
