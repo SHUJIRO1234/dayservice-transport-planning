@@ -169,7 +169,7 @@ function App() {
     }
     
     watchUserMasterChanges(handleUserMasterUpdate)
-  }, [selectedWeekday])
+  }, [selectedWeekday, unassignedUsers, vehicleAssignments])
   
   // 変更をローカルストレージに自動保存（初期読み込み時はスキップ）
   useEffect(() => {
@@ -322,6 +322,31 @@ function App() {
     const allUnassignedUsers = users.filter(u => !lockedUserIds.has(u.id))
     setUnassignedUsers(allUnassignedUsers)
     setVehicleAssignments(newAssignments)
+  }
+
+  // 利用者マスタから手動同期
+  const handleSyncUserMaster = () => {
+    const integratedWeeklyData = integrateUserData(weeklyData)
+    const users = integratedWeeklyData[selectedWeekday] || []
+    
+    // 既存のユーザーIDを収集
+    const existingUserIds = new Set()
+    unassignedUsers.forEach(u => existingUserIds.add(u.id))
+    Object.values(vehicleAssignments).forEach(assignment => {
+      assignment.trips?.forEach(trip => {
+        trip.users?.forEach(u => existingUserIds.add(u.id))
+      })
+    })
+    
+    // 新しいユーザーを抽出
+    const newUsers = users.filter(u => !existingUserIds.has(u.id))
+    
+    if (newUsers.length > 0) {
+      setUnassignedUsers(prev => [...prev, ...newUsers])
+      alert(`${newUsers.length}件の新規利用者を未割り当てリストに追加しました。`)
+    } else {
+      alert('新規利用者はありません。')
+    }
   }
 
   // 車両ごとのリセット
@@ -875,6 +900,10 @@ function App() {
                 全体ビュー
               </Button>
             </div>
+            <Button onClick={handleSyncUserMaster} variant="outline" className="flex items-center gap-2">
+              <Database className="w-4 h-4" />
+              利用者マスタから同期
+            </Button>
             <Button onClick={handleAutoAssign} className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               自動割り当て
