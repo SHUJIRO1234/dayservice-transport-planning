@@ -75,13 +75,13 @@ const UserManagement = ({ onClose }) => {
 
     // UserMasterモデルを使用してユニークIDを付与
     const daysOfWeek = [];
-    if (formData.monday) daysOfWeek.push('月');
-    if (formData.tuesday) daysOfWeek.push('火');
-    if (formData.wednesday) daysOfWeek.push('水');
-    if (formData.thursday) daysOfWeek.push('木');
-    if (formData.friday) daysOfWeek.push('金');
-    if (formData.saturday) daysOfWeek.push('土');
-    if (formData.sunday) daysOfWeek.push('日');
+    if (formData.monday) daysOfWeek.push('月曜日');
+    if (formData.tuesday) daysOfWeek.push('火曜日');
+    if (formData.wednesday) daysOfWeek.push('水曜日');
+    if (formData.thursday) daysOfWeek.push('木曜日');
+    if (formData.friday) daysOfWeek.push('金曜日');
+    if (formData.saturday) daysOfWeek.push('土曜日');
+    if (formData.sunday) daysOfWeek.push('日曜日');
 
     const newUser = new UserMaster({
       name: normalizedName,
@@ -130,13 +130,13 @@ const UserManagement = ({ onClose }) => {
     const normalizedPickupTime = normalizeTime(formData.pickupTime);
 
     const daysOfWeek = [];
-    if (formData.monday) daysOfWeek.push('月');
-    if (formData.tuesday) daysOfWeek.push('火');
-    if (formData.wednesday) daysOfWeek.push('水');
-    if (formData.thursday) daysOfWeek.push('木');
-    if (formData.friday) daysOfWeek.push('金');
-    if (formData.saturday) daysOfWeek.push('土');
-    if (formData.sunday) daysOfWeek.push('日');
+    if (formData.monday) daysOfWeek.push('月曜日');
+    if (formData.tuesday) daysOfWeek.push('火曜日');
+    if (formData.wednesday) daysOfWeek.push('水曜日');
+    if (formData.thursday) daysOfWeek.push('木曜日');
+    if (formData.friday) daysOfWeek.push('金曜日');
+    if (formData.saturday) daysOfWeek.push('土曜日');
+    if (formData.sunday) daysOfWeek.push('日曜日');
 
     const updatedUsers = users.map(user => {
       if (user.id === editingUser.id) {
