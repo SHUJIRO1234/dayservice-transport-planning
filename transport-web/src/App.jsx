@@ -4,15 +4,22 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Calendar, MapPin, Users, Car, Accessibility, Clock, Route, Navigation, RotateCcw, Trash2, Lock } from 'lucide-react'
+import { Calendar, MapPin, Users, Car, Accessibility, Clock, Route, Navigation, RotateCcw, Trash2, Lock, Printer, Database } from 'lucide-react'
 import TransportMap from './components/TransportMap.jsx'
 import VehicleTabs from './components/VehicleTabs.jsx'
 import TripManager from './components/TripManager.jsx'
 import SortableUserCard from './components/SortableUserCard.jsx'
 import DashboardView from './components/DashboardView.jsx'
-import { optimizeRoute, recalculateRoute } from './utils/routeOptimization.js'
+import TransportPlanPrint from './components/print/TransportPlanPrint.jsx'
+import DriverInstructionPrint from './components/print/DriverInstructionPrint.jsx'
+import PrintButton from './components/PrintButton.jsx'
+import UserManagementEnhanced from './components/UserManagementEnhanced.jsx';
+import UsageRecordManager from './components/UsageRecordManager.jsx';
+import ServiceCodeManager from './components/ServiceCodeManager.jsx';import { optimizeRoute, recalculateRoute } from './utils/routeOptimization.js'
+import { assignUsersToVehiclesWithClustering } from './utils/geographicClustering.js'
 import { weeklyData, vehicles as vehiclesData, facility as facilityData } from './weeklyData.js'
 import './App.css'
+import './styles/print.css'
 
 // 未割り当てリスト用のドロップゾーンコンポーネント
 const UnassignedDropZone = ({ children, isDragging }) => {
@@ -43,15 +50,20 @@ const UnassignedDropZone = ({ children, isDragging }) => {
 function App() {
   const [selectedWeekday, setSelectedWeekday] = useState('月曜日')
   const [selectedVehicle, setSelectedVehicle] = useState(1)
+  const [selectedTrip, setSelectedTrip] = useState('Trip 1') // Trip 1, Trip 2, Trip 3
   const [vehicles, setVehicles] = useState(vehiclesData)
   const [facility, setFacility] = useState(facilityData)
   const [showMap, setShowMap] = useState(false)
   const [viewMode, setViewMode] = useState('tab') // 'tab' or 'dashboard'
+  const [printMode, setPrintMode] = useState(null) // null, 'plan', 'instruction'
   const [activeId, setActiveId] = useState(null);
   const [activeUser, setActiveUser] = useState(null);
   const [vehicleAssignments, setVehicleAssignments] = useState({})
   const [unassignedUsers, setUnassignedUsers] = useState([])
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [showUserManagement, setShowUserManagement] = useState(false)
+  const [showUsageRecordManager, setShowUsageRecordManager] = useState(false)
+  const [showServiceCodeManager, setShowServiceCodeManager] = useState(false)
 
   const weekdays = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日']
 
@@ -123,28 +135,38 @@ function App() {
       savedAt: new Date().toISOString()
     }
     localStorage.setItem(storageKey, JSON.stringify(dataToSave))
-  }, [vehicleAssignments, unassignedUsers, selectedWeekday, isInitialLoad])
+    
+    // モバイルビュー用に車両情報を保存（Trip別）
+    const tripStorageKey = `transport-${selectedWeekday}-${selectedTrip}`
+    const vehiclesWithData = vehicles.map(vehicle => {
+      const assignment = vehicleAssignments[vehicle.id] || { trips: [] }
+      return {
+        ...vehicle,
+        trips: assignment.trips || []
+      }
+    })
+    
+    const tripDataToSave = {
+      vehicles: vehiclesWithData,
+      facility,
+      selectedDay: selectedWeekday,
+      selectedTrip,
+      savedAt: new Date().toISOString()
+    }
+    localStorage.setItem(tripStorageKey, JSON.stringify(tripDataToSave))
+  }, [vehicleAssignments, unassignedUsers, selectedWeekday, selectedTrip, isInitialLoad, vehicles, facility])
 
-  // 自動割り当て（追加モード）
+  // 地理的クラスタリングを使用した自動割り当て
   const handleAutoAssign = () => {
     if (unassignedUsers.length === 0) return
 
-    const newAssignments = { ...vehicleAssignments }
-    // 欠席者を除外して割り当て
-    // 朝一の時間順にソート
-    const sortedUsers = [...unassignedUsers.filter(u => !u.isAbsent)].sort((a, b) => {
-      const timeA = a.pickupTime || "99:99"
-      const timeB = b.pickupTime || "99:99"
-      return timeA.localeCompare(timeB)
-    })
+    // 欠席者を除外
+    const availableUsers = unassignedUsers.filter(u => !u.isAbsent)
     
-    // 固定された利用者と柔軟な利用者を分離
-    const fixedUsers = sortedUsers.filter(u => u.isOrderFixed)
-    const flexibleUsers = sortedUsers.filter(u => !u.isOrderFixed)
-    
-    // 車椅子と一般に分類
-    let wheelchairUsers = flexibleUsers.filter(u => u.wheelchair)
-    let regularUsers = flexibleUsers.filter(u => !u.wheelchair)
+    if (availableUsers.length === 0) {
+      alert('割り当て可能な利用者がいません。')
+      return
+    }
 
     // 有効で固定されていない車両のみを対象にする
     const activeVehicles = vehicles.filter(v => v.isActive && !v.isLocked)
@@ -154,101 +176,65 @@ function App() {
       return
     }
 
-    // 既存の割り当てがない車両には空の便を作成
+    // 固定された利用者と柔軟な利用者を分離
+    const fixedUsers = availableUsers.filter(u => u.isOrderFixed)
+    const flexibleUsers = availableUsers.filter(u => !u.isOrderFixed)
+
+    // 地理的クラスタリングを使用して柔軟な利用者を割り当て
+    const clusteringAssignments = assignUsersToVehiclesWithClustering(flexibleUsers, activeVehicles)
+
+    // 既存の割り当てを保持
+    const newAssignments = { ...vehicleAssignments }
+
+    // 固定されていない車両の割り当てをクラスタリング結果で更新
     activeVehicles.forEach(vehicle => {
-      if (!newAssignments[vehicle.id] || !newAssignments[vehicle.id].trips || newAssignments[vehicle.id].trips.length === 0) {
-        newAssignments[vehicle.id] = { trips: [{ users: [], distance: 0, duration: 0 }] }
-      }
-    })
-
-    // 必要な便数を計算（車椅子と一般を別々に計算）
-    const totalCapacity = activeVehicles.reduce((sum, v) => sum + v.capacity, 0)
-    const totalWheelchairCapacity = activeVehicles.reduce((sum, v) => sum + v.wheelchairCapacity, 0)
-
-    // 固定ユーザーを各車両の新しい便に配置
-    let fixedUserIndex = 0
-    activeVehicles.forEach(vehicle => {
-      if (fixedUserIndex < fixedUsers.length) {
-        newAssignments[vehicle.id].trips.push({ users: [fixedUsers[fixedUserIndex]], distance: 0, duration: 0 })
-        fixedUserIndex++
-      }
-    })
-
-    // 各車両の空き容量を計算
-    const vehicleCapacities = activeVehicles.map(vehicle => {
-      const trips = newAssignments[vehicle.id].trips
-      const lastTrip = trips[trips.length - 1]
-      const currentUsers = lastTrip.users.length
-      const wheelchairCount = lastTrip.users.filter(u => u.wheelchair).length
+      const vehicleId = vehicle.id
       
-      return {
-        vehicleId: vehicle.id,
-        capacity: vehicle.capacity,
-        wheelchairCapacity: vehicle.wheelchairCapacity,
-        availableSeats: vehicle.capacity - currentUsers,
-        availableWheelchairSeats: vehicle.wheelchairCapacity - wheelchairCount,
-        tripIndex: trips.length - 1
+      if (clusteringAssignments[vehicleId]) {
+        // クラスタリング結果がある場合
+        newAssignments[vehicleId] = clusteringAssignments[vehicleId]
+      } else {
+        // クラスタリング結果がない場合は空の便を作成
+        newAssignments[vehicleId] = { trips: [{ users: [], distance: 0, duration: 0 }] }
       }
     })
 
-    // 柔軟な利用者を割り当て（車椅子優先）
-    while (wheelchairUsers.length > 0 || regularUsers.length > 0) {
-      let assigned = false
-
-      // 車椅子ユーザーを割り当て
-      if (wheelchairUsers.length > 0) {
-        for (const cap of vehicleCapacities) {
-          if (cap.availableWheelchairSeats > 0 && cap.availableSeats > 0) {
-            const user = wheelchairUsers.shift()
-            const vehicle = activeVehicles.find(v => v.id === cap.vehicleId)
-            newAssignments[cap.vehicleId].trips[cap.tripIndex].users.push(user)
-            cap.availableWheelchairSeats--
-            cap.availableSeats--
-            assigned = true
-            break
+    // 固定された利用者を手動で追加（最初の利用可能な便に追加）
+    if (fixedUsers.length > 0) {
+      let vehicleIndex = 0
+      fixedUsers.forEach(user => {
+        if (vehicleIndex < activeVehicles.length) {
+          const vehicleId = activeVehicles[vehicleIndex].id
+          const vehicle = activeVehicles[vehicleIndex]
+          
+          // 最後の便に追加を試みる
+          const trips = newAssignments[vehicleId].trips
+          const lastTrip = trips[trips.length - 1]
+          
+          const currentUsers = lastTrip.users.length
+          const wheelchairCount = lastTrip.users.filter(u => u.wheelchair).length
+          
+          const canAdd = 
+            currentUsers < vehicle.capacity &&
+            (!user.wheelchair || wheelchairCount < vehicle.wheelchairCapacity)
+          
+          if (canAdd) {
+            lastTrip.users.push(user)
+          } else {
+            // 新しい便を作成
+            trips.push({ users: [user], distance: 0, duration: 0 })
           }
+          
+          vehicleIndex = (vehicleIndex + 1) % activeVehicles.length
         }
-      }
-
-      // 一般ユーザーを割り当て
-      if (!assigned && regularUsers.length > 0) {
-        for (const cap of vehicleCapacities) {
-          if (cap.availableSeats > 0) {
-            const user = regularUsers.shift()
-            newAssignments[cap.vehicleId].trips[cap.tripIndex].users.push(user)
-            cap.availableSeats--
-            assigned = true
-            break
-          }
-        }
-      }
-
-      // すべての車両が満車の場合、新しい便を作成
-      if (!assigned) {
-        activeVehicles.forEach(vehicle => {
-          newAssignments[vehicle.id].trips.push({ users: [], distance: 0, duration: 0 })
-        })
-        
-        // 容量情報をリセット
-        vehicleCapacities.forEach((cap, index) => {
-          const vehicle = activeVehicles[index]
-          cap.availableSeats = vehicle.capacity
-          cap.availableWheelchairSeats = vehicle.wheelchairCapacity
-          cap.tripIndex++
-        })
-      }
-
-      // 全て割り当て完了
-      if (wheelchairUsers.length === 0 && regularUsers.length === 0) {
-        break
-      }
+      })
     }
 
     // 欠席者を含めた未割り当てリストを作成
     const absentUsers = unassignedUsers.filter(u => u.isAbsent)
-    const remainingUsers = [...wheelchairUsers, ...regularUsers, ...absentUsers]
+    
     setVehicleAssignments(newAssignments)
-    setUnassignedUsers(remainingUsers)
+    setUnassignedUsers(absentUsers)
   }
 
   // 全リセット（固定されていない車両のみ）
@@ -708,11 +694,39 @@ function App() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <div className="container mx-auto p-4 md:p-6">
           {/* ヘッダー */}
-          <div className="mb-6">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-              デイサービス送迎計画 - 運行管理システム
-            </h1>
-            <p className="text-gray-600">効率的な送迎ルートの計画と管理</p>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
+                デイサービス送迎計画 - 運行管理システム
+              </h1>
+              <p className="text-gray-600">効率的な送迎ルートの計画と管理</p>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => setShowUserManagement(true)}
+                className="flex items-center gap-2"
+                size="lg"
+              >
+                <Database className="w-5 h-5" />
+                利用者管理
+              </Button>
+              <Button 
+                onClick={() => setShowUsageRecordManager(true)}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                size="lg"
+              >
+                <Calendar className="w-5 h-5" />
+                利用実績
+              </Button>
+              <Button 
+                onClick={() => setShowServiceCodeManager(true)}
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+                size="lg"
+              >
+                <Database className="w-5 h-5" />
+                サービスコード
+              </Button>
+            </div>
           </div>
 
           {/* 曜日選択タブ */}
@@ -856,6 +870,7 @@ function App() {
                   optimizedRoute={[]}
                   vehicleAssignments={vehicleAssignments}
                   vehicles={vehicles}
+                  enableVehicleSelection={true}
                 />
               </CardContent>
             </Card>
@@ -991,8 +1006,11 @@ function App() {
                         {/* 便管理 */}
                         <TripManager
                           vehicleId={selectedVehicle}
+                          vehicle={vehicles.find(v => v.id === selectedVehicle)}
                           trips={selectedVehicleAssignment.trips}
                           facility={facility}
+                          selectedDay={selectedWeekday}
+                          selectedTrip={selectedTrip}
                           onAddTrip={handleAddTrip}
                           onRemoveTrip={handleRemoveTrip}
                           onReorderUsers={handleReorderUsers}
@@ -1015,6 +1033,21 @@ function App() {
           <SortableUserCard user={activeUser} isOverlay={true} />
         ) : null}
       </DragOverlay>
+
+      {/* 利用者管理モーダル */}
+      {showUserManagement && (
+        <UserManagementEnhanced onClose={() => setShowUserManagement(false)} />
+      )}
+
+      {/* 利用実績管理モーダル */}
+      {showUsageRecordManager && (
+        <UsageRecordManager onClose={() => setShowUsageRecordManager(false)} />
+      )}
+
+      {/* サービスコード管理モーダル */}
+      {showServiceCodeManager && (
+        <ServiceCodeManager onClose={() => setShowServiceCodeManager(false)} />
+      )}
     </DndContext>
   )
 }
