@@ -104,21 +104,24 @@ function App() {
 
   // 初回アクセス時に古いデータをクリア（1回のみ実行）
   useEffect(() => {
-    const clearFlag = localStorage.getItem('data_cleared_v1');
+    const clearFlag = localStorage.getItem('data_cleared_v2');
     if (!clearFlag) {
       // 古いデータをクリア
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key.startsWith('transport_plan_') || key === 'userMaster' || key === 'vehicles') {
+        if (key && (key.startsWith('transport_plan_') || key === 'userMaster' || key === 'vehicles' || key === 'dayservice_users' || key === 'data_cleared_v1')) {
           keysToRemove.push(key);
         }
       }
       keysToRemove.forEach(key => localStorage.removeItem(key));
       
       // クリア済みフラグを設定
-      localStorage.setItem('data_cleared_v1', 'true');
-      console.log('✅ 古いデータをクリアしました');
+      localStorage.setItem('data_cleared_v2', 'true');
+      console.log('✅ 古いデータをクリアしました（v2）');
+      
+      // ページをリロード
+      window.location.reload();
     }
   }, []);
 
