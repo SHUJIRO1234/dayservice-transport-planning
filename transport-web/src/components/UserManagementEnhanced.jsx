@@ -83,11 +83,22 @@ const UserManagementEnhanced = ({ onClose }) => {
   };
 
   // サンプル利用者を移行
-  const handleMigrateSampleUsers = () => {
-    if (confirm('weeklyData.jsのサンプル利用者を利用者マスタに移行しますか？\n既存のデータは保持されます。')) {
-      const migratedUsers = saveSampleUsersToLocalStorage();
-      setUsers(migratedUsers);
-      alert(`${migratedUsers.length}名のサンプル利用者を移行しました`);
+  const handleMigrateSampleUsers = async () => {
+    if (confirm('80名のサンプル利用者を利用者マスタに移行しますか？\n既存のデータは上書きされます。')) {
+      try {
+        // 80名のサンプルデータを読み込む
+        const response = await fetch('/sample_users_80.json');
+        const data = await response.json();
+        const sampleUsers = data.userMaster;
+        
+        // localStorageに保存
+        localStorage.setItem('userMaster', JSON.stringify(sampleUsers));
+        setUsers(sampleUsers);
+        alert(`${sampleUsers.length}名のサンプル利用者を移行しました`);
+      } catch (error) {
+        console.error('サンプルデータの読み込みに失敗しました:', error);
+        alert('サンプルデータの移行に失敗しました');
+      }
     }
   };
 
