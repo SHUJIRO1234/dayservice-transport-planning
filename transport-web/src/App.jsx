@@ -104,28 +104,41 @@ function App() {
 
   // 初回アクセス時に古いデータをクリア（1回のみ実行）
   useEffect(() => {
-    const initFlag = localStorage.getItem('data_initialized_v3');
+    const initFlag = localStorage.getItem('data_initialized_v4');
     if (!initFlag) {
+      console.log('⚠️ 初回アクセス検出: データを初期化します...');
+      
       // 古いデータを完全にクリア
       localStorage.clear();
-      console.log('✅ 古いデータを完全にクリアしました');
+      console.log('✅ localStorageを完全にクリアしました');
       
       // 80名のサンプルデータを読み込んで登録
       fetch('/sample_users_80.json')
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
         .then(data => {
+          if (!data.userMaster || !Array.isArray(data.userMaster)) {
+            throw new Error('無効なデータ形式です');
+          }
+          
           localStorage.setItem('userMaster', JSON.stringify(data.userMaster));
           console.log(`✅ ${data.userMaster.length}名のサンプル利用者を登録しました`);
           
           // 初期化済みフラグを設定
-          localStorage.setItem('data_initialized_v3', 'true');
+          localStorage.setItem('data_initialized_v4', 'true');
           
           // ページをリロード
-          window.location.reload();
+          console.log('✅ 初期化完了。ページをリロードします...');
+          setTimeout(() => window.location.reload(), 500);
         })
         .catch(error => {
-          console.error('サンプルデータの読み込みに失敗しました:', error);
-          localStorage.setItem('data_initialized_v3', 'true');
+          console.error('❌ サンプルデータの読み込みに失敗しました:', error);
+          localStorage.setItem('data_initialized_v4', 'true');
+          alert('データの初期化に失敗しました。ページを再読み込みしてください。');
         });
     }
   }, []);
