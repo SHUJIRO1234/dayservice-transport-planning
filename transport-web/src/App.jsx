@@ -102,6 +102,26 @@ function App() {
     return closestCorners(args);
   }
 
+  // 初回アクセス時に古いデータをクリア（1回のみ実行）
+  useEffect(() => {
+    const clearFlag = localStorage.getItem('data_cleared_v1');
+    if (!clearFlag) {
+      // 古いデータをクリア
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('transport_plan_') || key === 'userMaster' || key === 'vehicles') {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      // クリア済みフラグを設定
+      localStorage.setItem('data_cleared_v1', 'true');
+      console.log('✅ 古いデータをクリアしました');
+    }
+  }, []);
+
   // 曜日が変わったらローカルストレージから読み込む
   useEffect(() => {
     setIsInitialLoad(true) // 読み込み中フラグを立てる
