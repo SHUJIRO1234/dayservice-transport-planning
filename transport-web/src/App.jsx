@@ -943,6 +943,19 @@ function App() {
               <RotateCcw className="w-4 h-4" />
               全リセット
             </Button>
+            <Button 
+              onClick={() => {
+                if (confirm('すべてのデータ（利用者、車両、割り当て）をクリアします。\nこの操作は元に戻せません。\nよろしいですか？')) {
+                  localStorage.clear();
+                  window.location.reload();
+                }
+              }}
+              variant="destructive" 
+              className="flex items-center gap-2 bg-red-700 hover:bg-red-800"
+            >
+              <Trash2 className="w-4 h-4" />
+              データクリア
+            </Button>
           </div>
 
           {/* 地図表示 */}
