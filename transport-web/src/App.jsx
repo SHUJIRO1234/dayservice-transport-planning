@@ -15,7 +15,9 @@ import DriverInstructionPrint from './components/print/DriverInstructionPrint.js
 import PrintButton from './components/PrintButton.jsx'
 import UserManagementEnhanced from './components/UserManagementEnhanced.jsx';
 import UsageRecordManager from './components/UsageRecordManager.jsx';
-import ServiceCodeManager from './components/ServiceCodeManager.jsx';import { optimizeRoute, recalculateRoute } from './utils/routeOptimization.js'
+import ServiceCodeManager from './components/ServiceCodeManager.jsx';
+import VehicleManager from './components/VehicleManager.jsx';
+import { optimizeRoute, recalculateRoute } from './utils/routeOptimization.js'
 import { assignUsersToVehiclesWithClustering } from './utils/geographicClustering.js'
 import { weeklyData, vehicles as vehiclesData, facility as facilityData } from './weeklyData.js'
 import { integrateUserData, watchUserMasterChanges, triggerUserMasterUpdate } from './utils/userDataIntegration.js'
@@ -52,7 +54,10 @@ function App() {
   const [selectedWeekday, setSelectedWeekday] = useState('月曜日')
   const [selectedVehicle, setSelectedVehicle] = useState(1)
   const [selectedTrip, setSelectedTrip] = useState('Trip 1') // Trip 1, Trip 2, Trip 3
-  const [vehicles, setVehicles] = useState(vehiclesData)
+  const [vehicles, setVehicles] = useState(() => {
+    const saved = localStorage.getItem('vehicles');
+    return saved ? JSON.parse(saved) : vehiclesData;
+  })
   const [facility, setFacility] = useState(facilityData)
   const [showMap, setShowMap] = useState(false)
   const [viewMode, setViewMode] = useState('tab') // 'tab' or 'dashboard'
@@ -65,6 +70,7 @@ function App() {
   const [showUserManagement, setShowUserManagement] = useState(false)
   const [showUsageRecordManager, setShowUsageRecordManager] = useState(false)
   const [showServiceCodeManager, setShowServiceCodeManager] = useState(false)
+  const [showVehicleManager, setShowVehicleManager] = useState(false)
 
   const weekdays = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日']
 
@@ -799,6 +805,14 @@ function App() {
                 <Database className="w-5 h-5" />
                 サービスコード
               </Button>
+              <Button 
+                onClick={() => setShowVehicleManager(true)}
+                className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700"
+                size="lg"
+              >
+                <Car className="w-5 h-5" />
+                車両管理
+              </Button>
             </div>
           </div>
 
@@ -1124,6 +1138,14 @@ function App() {
       {/* サービスコード管理モーダル */}
       {showServiceCodeManager && (
         <ServiceCodeManager onClose={() => setShowServiceCodeManager(false)} />
+      )}
+
+      {/* 車両管理モーダル */}
+      {showVehicleManager && (
+        <VehicleManager 
+          onClose={() => setShowVehicleManager(false)}
+          onVehiclesUpdate={(newVehicles) => setVehicles(newVehicles)}
+        />
       )}
     </DndContext>
   )
