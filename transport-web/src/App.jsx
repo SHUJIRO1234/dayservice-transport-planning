@@ -286,7 +286,8 @@ function App() {
 
   // 全リセット（固定されていない車両のみ）
   const handleResetAll = () => {
-    const users = weeklyData[selectedWeekday] || []
+    const integratedWeeklyData = integrateUserData(weeklyData)
+    const users = integratedWeeklyData[selectedWeekday] || []
     
     // 固定されていない車両の利用者を未割り当てに戻す
     const unlockedUsers = []
@@ -820,7 +821,7 @@ function App() {
                   >
                     {day}
                     <Badge variant="secondary" className="ml-2">
-                      {weeklyData[day]?.length || 0}名
+                      {integrateUserData(weeklyData)[day]?.length || 0}名
                     </Badge>
                   </Button>
                 ))}
