@@ -10,7 +10,7 @@
  */
 export const getUserMasterData = () => {
   try {
-    const data = localStorage.getItem('dayservice_users');
+    const data = localStorage.getItem('userMaster');
     if (!data) return [];
     return JSON.parse(data);
   } catch (error) {
@@ -115,7 +115,7 @@ export const integrateUserData = (sampleWeeklyData, userMasterData = null) => {
 export const watchUserMasterChanges = (callback) => {
   // localStorageの変更を監視
   window.addEventListener('storage', (event) => {
-    if (event.key === 'dayservice_users') {
+    if (event.key === 'userMaster') {
       callback();
     }
   });
