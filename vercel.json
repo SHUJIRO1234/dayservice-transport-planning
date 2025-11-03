@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd transport-web && pnpm run build",
+  "outputDirectory": "transport-web/dist",
+  "installCommand": "cd transport-web && pnpm install",
+  "framework": "vite"
+}
+
