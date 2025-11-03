@@ -1,7 +1,28 @@
 {
+  "version": 2,
   "buildCommand": "cd transport-web && pnpm run build",
   "outputDirectory": "transport-web/dist",
   "installCommand": "cd transport-web && pnpm install",
-  "framework": "vite"
+  "framework": "vite",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ]
 }
 
