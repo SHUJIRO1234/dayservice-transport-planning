@@ -104,24 +104,29 @@ function App() {
 
   // 初回アクセス時に古いデータをクリア（1回のみ実行）
   useEffect(() => {
-    const clearFlag = localStorage.getItem('data_cleared_v2');
-    if (!clearFlag) {
-      // 古いデータをクリア
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.startsWith('transport_plan_') || key === 'userMaster' || key === 'vehicles' || key === 'dayservice_users' || key === 'data_cleared_v1')) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach(key => localStorage.removeItem(key));
+    const initFlag = localStorage.getItem('data_initialized_v3');
+    if (!initFlag) {
+      // 古いデータを完全にクリア
+      localStorage.clear();
+      console.log('✅ 古いデータを完全にクリアしました');
       
-      // クリア済みフラグを設定
-      localStorage.setItem('data_cleared_v2', 'true');
-      console.log('✅ 古いデータをクリアしました（v2）');
-      
-      // ページをリロード
-      window.location.reload();
+      // 80名のサンプルデータを読み込んで登録
+      fetch('/sample_users_80.json')
+        .then(response => response.json())
+        .then(data => {
+          localStorage.setItem('userMaster', JSON.stringify(data.userMaster));
+          console.log(`✅ ${data.userMaster.length}名のサンプル利用者を登録しました`);
+          
+          // 初期化済みフラグを設定
+          localStorage.setItem('data_initialized_v3', 'true');
+          
+          // ページをリロード
+          window.location.reload();
+        })
+        .catch(error => {
+          console.error('サンプルデータの読み込みに失敗しました:', error);
+          localStorage.setItem('data_initialized_v3', 'true');
+        });
     }
   }, []);
 
