@@ -65,7 +65,7 @@ const UserManagementEnhanced = ({ onClose }) => {
 
   // ローカルストレージから利用者データを読み込み
   useEffect(() => {
-    const savedUsers = localStorage.getItem('dayservice_users');
+    const savedUsers = localStorage.getItem('userMaster');
     if (savedUsers) {
       try {
         setUsers(JSON.parse(savedUsers));
@@ -79,7 +79,7 @@ const UserManagementEnhanced = ({ onClose }) => {
   // 利用者データをローカルストレージに保存
   const saveUsers = (updatedUsers) => {
     setUsers(updatedUsers);
-    localStorage.setItem('dayservice_users', JSON.stringify(updatedUsers));
+    localStorage.setItem('userMaster', JSON.stringify(updatedUsers));
   };
 
   // サンプル利用者を移行
