@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "cd transport-web && rm -rf dist node_modules/.vite && pnpm run build",
+  "buildCommand": "cd transport-web && rm -rf dist node_modules/.vite && npm run build",
   "outputDirectory": "transport-web/dist",
-  "installCommand": "cd transport-web && pnpm install",
+  "installCommand": "cd transport-web && npm install",
   "framework": "vite",
   "cleanUrls": true,
   "trailingSlash": false,
