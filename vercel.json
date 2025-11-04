@@ -2,7 +2,7 @@
   "version": 2,
   "buildCommand": "cd transport-web && rm -rf dist node_modules/.vite && npm run build",
   "outputDirectory": "transport-web/dist",
-  "installCommand": "cd transport-web && npm install",
+  "installCommand": "cd transport-web && npm install --legacy-peer-deps",
   "framework": "vite",
   "cleanUrls": true,
   "trailingSlash": false,
