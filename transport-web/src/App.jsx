@@ -377,6 +377,11 @@ function App() {
     const integratedWeeklyData = integrateUserData(weeklyData)
     const users = integratedWeeklyData[selectedWeekday] || []
     
+    if (users.length === 0) {
+      alert('選択された曜日に利用者が登録されていません。')
+      return
+    }
+    
     // 既存のユーザーIDを収集
     const existingUserIds = new Set()
     unassignedUsers.forEach(u => existingUserIds.add(u.id))
@@ -391,9 +396,9 @@ function App() {
     
     if (newUsers.length > 0) {
       setUnassignedUsers(prev => [...prev, ...newUsers])
-      alert(`${newUsers.length}件の新規利用者を未割り当てリストに追加しました。`)
+      alert(`${newUsers.length}件の新規利用者を未割り当てリストに追加しました。\n\n合計: ${users.length}名中 ${newUsers.length}名が新規追加されました。`)
     } else {
-      alert('新規利用者はありません。')
+      alert(`選択された曜日の利用者${users.length}名は既に登録されています。`)
     }
   }
 

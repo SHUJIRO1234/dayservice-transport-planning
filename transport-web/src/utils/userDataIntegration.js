@@ -54,13 +54,30 @@ export const convertUserMasterToTransportFormat = (userMasterData) => {
  * 曜日ごとに利用者をフィルタリング
  */
 export const filterUsersByWeekday = (users, weekday) => {
+  // 曜日名をbooleanフィールド名に変換
+  const weekdayToBooleanField = {
+    '月曜日': 'monday',
+    '火曜日': 'tuesday',
+    '水曜日': 'wednesday',
+    '木曜日': 'thursday',
+    '金曜日': 'friday',
+    '土曜日': 'saturday',
+    '日曜日': 'sunday',
+  };
+  
   return users.filter(user => {
-    if (!user.days_of_week || user.days_of_week.length === 0) {
-      return false; // 利用曜日が設定されていない場合は除外
+    // days_of_week配列形式をチェック
+    if (user.days_of_week && Array.isArray(user.days_of_week) && user.days_of_week.length > 0) {
+      return user.days_of_week.includes(weekday);
     }
     
-    // days_of_weekには「水曜日」のような完全な形式が入っているので直接比較
-    return user.days_of_week.includes(weekday);
+    // boolean形式をチェック (monday, tuesday, etc.)
+    const booleanField = weekdayToBooleanField[weekday];
+    if (booleanField && user[booleanField] === true) {
+      return true;
+    }
+    
+    return false;
   });
 };
 
