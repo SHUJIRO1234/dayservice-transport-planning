@@ -144,6 +144,12 @@ export default function TransportMap({ facility, users, route = null, vehicleAss
   const userLocations = locations.filter(loc => loc.type === 'user')
   const center = facilityLocation ? [facilityLocation.lat, facilityLocation.lng] : defaultCenter
 
+  // デバッグ用
+  useEffect(() => {
+    console.log('facilityLocation:', facilityLocation)
+    console.log('locations:', locations)
+  }, [facilityLocation, locations])
+
   return (
     <div className="w-full h-[600px] rounded-lg overflow-hidden shadow-lg border border-gray-200 relative">
       {/* 車両選択UI */}
@@ -258,14 +264,21 @@ export default function TransportMap({ facility, users, route = null, vehicleAss
                   [facilityLocation.lat, facilityLocation.lng]
                 ]
 
+                // デバッグ用
+                console.log(`Vehicle ${vehicle.id}, Trip ${tripIndex}:`, {
+                  color,
+                  routePositions,
+                  usersCount: trip.users.length
+                })
+
                 return (
                   <div key={`${vehicle.id}-${tripIndex}`}>
                     {/* ルートライン */}
                     <Polyline
                       positions={routePositions}
                       color={color}
-                      weight={4}
-                      opacity={0.6}
+                      weight={6}
+                      opacity={0.8}
                       dashArray={tripIndex > 0 ? '10, 10' : undefined}
                     />
 

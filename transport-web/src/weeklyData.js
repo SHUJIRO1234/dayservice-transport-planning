@@ -12,7 +12,7 @@ export const weeklyData = {
 
 // 事業所情報
 export const facility = {
-  name: "デイサービスさくら",
+  facility_name: "デイサービスさくら",
   address: "荒川区西日暮里2-10-5",
   lat: 35.7328,
   lng: 139.7645,
