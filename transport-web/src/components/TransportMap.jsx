@@ -91,8 +91,16 @@ function MapBoundsUpdater({ locations }) {
   return null
 }
 
-export default function TransportMap({ facility, users, route = null, vehicleAssignments = null, vehicles = null }) {
+export default function TransportMap({ facility, users, route = null, vehicleAssignments = null, vehicles = null, enableVehicleSelection = false, selectedVehicle = null }) {
   const [locations, setLocations] = useState([])
+  const [activeVehicle, setActiveVehicle] = useState(null) // 選択された車両
+
+  // デバッグ用
+  useEffect(() => {
+    console.log('TransportMap - activeVehicle:', activeVehicle)
+    console.log('TransportMap - vehicleAssignments:', vehicleAssignments)
+    console.log('TransportMap - vehicles:', vehicles)
+  }, [activeVehicle, vehicleAssignments, vehicles])
 
   useEffect(() => {
     // 座標データを直接使用
@@ -137,12 +145,53 @@ export default function TransportMap({ facility, users, route = null, vehicleAss
   const center = facilityLocation ? [facilityLocation.lat, facilityLocation.lng] : defaultCenter
 
   return (
-    <div className="w-full h-[600px] rounded-lg overflow-hidden shadow-lg border border-gray-200">
+    <div className="w-full h-[600px] rounded-lg overflow-hidden shadow-lg border border-gray-200 relative">
+      {/* 車両選択UI */}
+      {enableVehicleSelection && vehicles && vehicles.length > 0 && (
+        <div className="absolute top-4 left-4 z-[1000] bg-white rounded-lg shadow-lg p-2 space-y-1">
+          <button
+            onClick={() => setActiveVehicle(null)}
+            className={`w-full px-3 py-1.5 text-sm rounded ${
+              activeVehicle === null
+                ? 'bg-gray-800 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            全車両表示
+          </button>
+          {vehicles.filter(v => v.isActive).map((vehicle, index) => {
+            const color = vehicleColors[index % vehicleColors.length]
+            return (
+              <button
+                key={vehicle.id}
+                onClick={() => setActiveVehicle(vehicle.id)}
+                className={`w-full px-3 py-1.5 text-sm rounded flex items-center gap-2 ${
+                  activeVehicle === vehicle.id
+                    ? 'text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                style={{
+                  backgroundColor: activeVehicle === vehicle.id ? color : undefined
+                }}
+              >
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+                {vehicle.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
+      
       <MapContainer
         center={center}
         zoom={14}
         style={{ height: '100%', width: '100%' }}
-        scrollWheelZoom={true}
+        scrollWheelZoom={false}
+        doubleClickZoom={true}
+        dragging={true}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -189,11 +238,15 @@ export default function TransportMap({ facility, users, route = null, vehicleAss
         {/* 送迎ルートの表示 */}
         {vehicleAssignments && vehicles && facilityLocation && (
           <>
-            {vehicles.filter(v => v.isActive).map((vehicle, vehicleIndex) => {
+            {vehicles.filter(v => v.isActive)
+              .filter(v => activeVehicle === null || v.id === activeVehicle)
+              .map((vehicle) => {
               const assignment = vehicleAssignments[vehicle.id]
               if (!assignment || !assignment.trips) return null
 
-              const color = vehicleColors[vehicleIndex % vehicleColors.length]
+              // 元の車両リストでのインデックスを取得（色の一貫性のため）
+              const originalVehicleIndex = vehicles.findIndex(v => v.id === vehicle.id)
+              const color = vehicleColors[originalVehicleIndex % vehicleColors.length]
 
               return assignment.trips.map((trip, tripIndex) => {
                 if (!trip.users || trip.users.length === 0) return null

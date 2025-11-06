@@ -877,9 +877,10 @@ function App() {
     setVehicleAssignments(newAssignments)
   }
 
-  // 統計情報を計算
-  const totalUsers = weeklyData[selectedWeekday]?.length || 0
-  const wheelchairUsers = weeklyData[selectedWeekday]?.filter(u => u.wheelchair).length || 0
+  // 統計情報を計算（利用者マスタと統合したデータを使用）
+  const integratedWeeklyData = integrateUserData(weeklyData)
+  const totalUsers = integratedWeeklyData[selectedWeekday]?.length || 0
+  const wheelchairUsers = integratedWeeklyData[selectedWeekday]?.filter(u => u.wheelchair).length || 0
   const regularUsers = totalUsers - wheelchairUsers
 
   // 選択中の車両の統計
