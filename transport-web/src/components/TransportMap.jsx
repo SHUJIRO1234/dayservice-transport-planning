@@ -257,30 +257,46 @@ export default function TransportMap({ facility, users, route = null, vehicleAss
               return assignment.trips.map((trip, tripIndex) => {
                 if (!trip.users || trip.users.length === 0) return null
 
-                // ルートの座標配列を作成：施設 → 利用者たち → 施設
-                const routePositions = [
-                  [facilityLocation.lat, facilityLocation.lng],
-                  ...trip.users.map(user => [user.lat, user.lng]),
-                  [facilityLocation.lat, facilityLocation.lng]
-                ]
-
-                // デバッグ用
-                console.log(`Vehicle ${vehicle.id}, Trip ${tripIndex}:`, {
-                  color,
-                  routePositions,
-                  usersCount: trip.users.length
-                })
+                // ルートの線分を個別に作成
+                const routeSegments = []
+                
+                // 施設から最初の利用者へ
+                if (trip.users.length > 0) {
+                  routeSegments.push([
+                    [facilityLocation.lat, facilityLocation.lng],
+                    [trip.users[0].lat, trip.users[0].lng]
+                  ])
+                }
+                
+                // 利用者間の移動
+                for (let i = 0; i < trip.users.length - 1; i++) {
+                  routeSegments.push([
+                    [trip.users[i].lat, trip.users[i].lng],
+                    [trip.users[i + 1].lat, trip.users[i + 1].lng]
+                  ])
+                }
+                
+                // 最後の利用者から施設へ
+                if (trip.users.length > 0) {
+                  routeSegments.push([
+                    [trip.users[trip.users.length - 1].lat, trip.users[trip.users.length - 1].lng],
+                    [facilityLocation.lat, facilityLocation.lng]
+                  ])
+                }
 
                 return (
                   <div key={`${vehicle.id}-${tripIndex}`}>
                     {/* ルートライン */}
-                    <Polyline
-                      positions={routePositions}
-                      color={color}
-                      weight={6}
-                      opacity={0.8}
-                      dashArray={tripIndex > 0 ? '10, 10' : undefined}
-                    />
+                    {routeSegments.map((segment, segmentIndex) => (
+                      <Polyline
+                        key={`${vehicle.id}-${tripIndex}-segment-${segmentIndex}`}
+                        positions={segment}
+                        color={color}
+                        weight={6}
+                        opacity={0.8}
+                        dashArray={tripIndex > 0 ? '10, 10' : undefined}
+                      />
+                    ))}
 
                     {/* 番号付きマーカー */}
                     {trip.users.map((user, userIndex) => (
