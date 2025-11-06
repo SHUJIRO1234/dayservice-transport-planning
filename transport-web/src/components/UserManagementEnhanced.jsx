@@ -291,6 +291,113 @@ const UserManagementEnhanced = ({ onClose }) => {
     }
   };
 
+  // CSVインポート
+  const handleImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        if (lines.length < 2) {
+          alert('CSVファイルが空です');
+          return;
+        }
+
+        // ヘッダー行をスキップ
+        const dataLines = lines.slice(1);
+        const importedUsers = [];
+
+        dataLines.forEach((line, index) => {
+          const columns = line.split(',').map(col => col.trim());
+          
+          if (columns.length < 14) {
+            console.warn(`行${index + 2}: 列数が不足しています`);
+            return;
+          }
+
+          const [name, address, wheelchair, pickupTime, notes, mon, tue, wed, thu, fri, sat, sun, serviceCode, additionalCodes] = columns;
+
+          if (!name || !address) {
+            console.warn(`行${index + 2}: 利用者名または住所が空です`);
+            return;
+          }
+
+          // 曜日配列を作成
+          const daysOfWeek = [];
+          if (mon === '○') daysOfWeek.push('月曜日');
+          if (tue === '○') daysOfWeek.push('火曜日');
+          if (wed === '○') daysOfWeek.push('水曜日');
+          if (thu === '○') daysOfWeek.push('木曜日');
+          if (fri === '○') daysOfWeek.push('金曜日');
+          if (sat === '○') daysOfWeek.push('土曜日');
+          if (sun === '○') daysOfWeek.push('日曜日');
+
+          const newUser = new UserMaster({
+            name: name,
+            address: address,
+            wheelchair: wheelchair === 'はい',
+            pickup_time: pickupTime || '08:00',
+            days_of_week: daysOfWeek,
+            notes: notes || ''
+          });
+
+          const userWithBilling = {
+            ...newUser.toJSON(),
+            id: newUser.user_id,
+            pickupTime: pickupTime || '08:00',
+            monday: mon === '○',
+            tuesday: tue === '○',
+            wednesday: wed === '○',
+            thursday: thu === '○',
+            friday: fri === '○',
+            saturday: sat === '○',
+            sunday: sun === '○',
+            serviceCode: serviceCode || '321111',
+            serviceDuration: {
+              monday: '7-8h',
+              tuesday: '7-8h',
+              wednesday: '7-8h',
+              thursday: '7-8h',
+              friday: '7-8h',
+              saturday: '7-8h',
+              sunday: '7-8h'
+            },
+            additionalServices: {
+              bathing: false,
+              training: false,
+              nutrition: false,
+              oral: false
+            },
+            additionalCodes: additionalCodes ? additionalCodes.split(';').filter(c => c) : []
+          };
+
+          importedUsers.push(userWithBilling);
+        });
+
+        if (importedUsers.length === 0) {
+          alert('インポート可能なデータがありませんでした');
+          return;
+        }
+
+        if (confirm(`${importedUsers.length}件の利用者データをインポートします。\n既存のデータは上書きされます。よろしいですか？`)) {
+          saveUsers(importedUsers);
+          alert(`${importedUsers.length}件の利用者データをインポートしました`);
+        }
+      } catch (error) {
+        console.error('CSVインポートエラー:', error);
+        alert('CSVファイルの読み込みに失敗しました。形式を確認してください。');
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+    
+    // input要素をリセット（同じファイルを再度選択できるように）
+    event.target.value = '';
+  };
+
   // エクスポート
   const handleExport = () => {
     const csv = [
@@ -358,6 +465,16 @@ const UserManagementEnhanced = ({ onClose }) => {
                 <Download className="w-5 h-5" />
                 エクスポート
               </button>
+              <label className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer">
+                <Upload className="w-5 h-5" />
+                インポート
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleImport}
+                  className="hidden"
+                />
+              </label>
               <button
                 onClick={handleMigrateSampleUsers}
                 className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
