@@ -524,28 +524,113 @@ function App() {
   const handleOptimizeAllRoutes = () => {
     if (!facility) return
 
-    const newAssignments = { ...vehicleAssignments }
+    // 有効で固定されていない車両のみを対象にする
+    const activeVehicles = vehicles.filter(v => v.isActive && !v.isLocked)
+    
+    if (activeVehicles.length === 0) {
+      alert('有効で固定されていない車両がありません。')
+      return
+    }
 
-    Object.keys(newAssignments).forEach(vehicleId => {
-      const assignment = newAssignments[vehicleId]
-      if (!assignment) return
-
-      newAssignments[vehicleId].trips = assignment.trips.map(trip => {
-        const users = trip.users || []
-        if (users.length === 0) {
-          return { users: [], distance: 0, duration: 0 }
+    // 固定されていない車両の利用者を未割り当てに戻す
+    const unlockedUsers = []
+    const newAssignments = {}
+    
+    vehicles.forEach(vehicle => {
+      if (vehicle.isLocked) {
+        // 固定された車両の割り当てを保持
+        newAssignments[vehicle.id] = vehicleAssignments[vehicle.id] || { trips: [{ users: [], distance: 0, duration: 0 }] }
+      } else {
+        // 固定されていない車両の利用者を未割り当てに戻す
+        const assignment = vehicleAssignments[vehicle.id]
+        if (assignment && assignment.trips) {
+          assignment.trips.forEach(trip => {
+            if (trip.users && trip.users.length > 0) {
+              unlockedUsers.push(...trip.users)
+            }
+          })
         }
-
-        const result = optimizeRoute(facility, users)
-        return {
-          users: result.order,
-          distance: result.totalDistance,
-          duration: result.estimatedTime
-        }
-      })
+        // 固定されていない車両は空の便で初期化
+        newAssignments[vehicle.id] = { trips: [{ users: [], distance: 0, duration: 0 }] }
+      }
     })
-
+    
+    // 固定された車両に割り当てられている利用者を除外
+    const lockedUserIds = new Set()
+    vehicles.forEach(vehicle => {
+      if (vehicle.isLocked && newAssignments[vehicle.id]) {
+        newAssignments[vehicle.id].trips.forEach(trip => {
+          trip.users.forEach(user => lockedUserIds.add(user.id))
+        })
+      }
+    })
+    
+    // 未割り当て利用者と固定されていない車両から解放された利用者を統合
+    const allUnassignedUsers = [
+      ...unassignedUsers.filter(u => !lockedUserIds.has(u.id)),
+      ...unlockedUsers.filter(u => !lockedUserIds.has(u.id))
+    ]
+    
+    // 欠席者を除外
+    const availableUsers = allUnassignedUsers.filter(u => !u.isAbsent)
+    
+    if (availableUsers.length === 0) {
+      alert('割り当て可能な利用者がいません。')
+      setVehicleAssignments(newAssignments)
+      return
+    }
+    
+    // 車椅子利用者と一般利用者を分離
+    const wheelchairUsers = availableUsers.filter(u => u.wheelchair)
+    const regularUsers = availableUsers.filter(u => !u.wheelchair)
+    
+    // 各車両に利用者を割り当て
+    let wheelchairIndex = 0
+    let regularIndex = 0
+    
+    activeVehicles.forEach(vehicle => {
+      const vehicleUsers = []
+      
+      // 車椅子利用者を割り当て
+      while (wheelchairIndex < wheelchairUsers.length && 
+             vehicleUsers.filter(u => u.wheelchair).length < vehicle.wheelchairCapacity) {
+        vehicleUsers.push(wheelchairUsers[wheelchairIndex])
+        wheelchairIndex++
+      }
+      
+      // 一般利用者を割り当て
+      while (regularIndex < regularUsers.length && 
+             vehicleUsers.length < vehicle.capacity) {
+        vehicleUsers.push(regularUsers[regularIndex])
+        regularIndex++
+      }
+      
+      // ルートを最適化
+      if (vehicleUsers.length > 0) {
+        const result = optimizeRoute(facility, vehicleUsers)
+        newAssignments[vehicle.id] = {
+          trips: [{
+            users: result.order,
+            distance: result.totalDistance,
+            duration: result.estimatedTime
+          }]
+        }
+      }
+    })
+    
+    // 割り当てられなかった利用者を未割り当てリストに戻す
+    const remainingUsers = [
+      ...wheelchairUsers.slice(wheelchairIndex),
+      ...regularUsers.slice(regularIndex),
+      ...allUnassignedUsers.filter(u => u.isAbsent)
+    ]
+    
+    setUnassignedUsers(remainingUsers)
     setVehicleAssignments(newAssignments)
+    
+    // 結果を通知
+    const assignedCount = availableUsers.length - (remainingUsers.filter(u => !u.isAbsent).length)
+    alert(`${assignedCount}名の利用者を${activeVehicles.length}台の車両に割り当てました。`)
   }
 
   // 便を追加
