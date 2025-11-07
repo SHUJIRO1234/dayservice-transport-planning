@@ -4,6 +4,7 @@ import { UserMaster } from '../models/dataModels.js';
 import { getCurrentTimestamp } from '../utils/uuid.js';
 import { normalizeName, normalizeAddress, normalizeTime } from '../utils/inputNormalizer.js';
 import { triggerUserMasterUpdate } from '../utils/userDataIntegration.js';
+import { geocodeAddress } from '../utils/geocoding.js';
 
 const UserManagement = ({ onClose }) => {
   const [users, setUsers] = useState([]);
@@ -237,8 +238,6 @@ const UserManagement = ({ onClose }) => {
 
         // 住所から座標を取得
         alert(`${importedUsers.length}件の住所から座標を取得しています...。\nこれには数分かかる場合があります。`);
-        
-        const { geocodeAddress } = await import('../utils/geocoding.js');
         const usersWithCoords = [];
         let successCount = 0;
         let failCount = 0;
