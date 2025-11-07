@@ -197,13 +197,13 @@ const UserManagement = ({ onClose }) => {
     link.click();
   };
 
-  // CSVインポート
-  const handleImport = (event) => {
+  // CSVインポート（住所から座標を自動取得）
+  const handleImport = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const text = e.target.result;
         const lines = text.split('\n').filter(line => line.trim());
@@ -214,7 +214,7 @@ const UserManagement = ({ onClose }) => {
           
           return {
             id: `import_${Date.now()}_${index}`,
-            user_id: `user_import_${Date.now()}_${index}`, // インポート時もuser_idを付与
+            user_id: `user_import_${Date.now()}_${index}`,
             name: values[0] || '',
             address: values[1] || '',
             wheelchair: values[2] === 'はい' || values[2] === '○',
@@ -230,12 +230,48 @@ const UserManagement = ({ onClose }) => {
           };
         }).filter(user => user.name && user.address);
 
-        if (importedUsers.length > 0) {
-          saveUsers([...users, ...importedUsers]);
-          alert(`${importedUsers.length}件の利用者データをインポートしました`);
-        } else {
+        if (importedUsers.length === 0) {
           alert('有効なデータが見つかりませんでした');
+          return;
         }
+
+        // 住所から座標を取得
+        alert(`${importedUsers.length}件の住所から座標を取得しています...。\nこれには数分かかる場合があります。`);
+        
+        const { geocodeAddress } = await import('../utils/geocoding.js');
+        const usersWithCoords = [];
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < importedUsers.length; i++) {
+          const user = importedUsers[i];
+          console.log(`Geocoding ${i + 1}/${importedUsers.length}: ${user.address}`);
+          
+          const coords = await geocodeAddress(user.address);
+          
+          if (coords) {
+            usersWithCoords.push({
+              ...user,
+              lat: coords.lat,
+              lng: coords.lng
+            });
+            successCount++;
+          } else {
+            // 座標取得失敗でもユーザーを追加（lat/lngなし）
+            usersWithCoords.push(user);
+            failCount++;
+            console.warn(`Failed to geocode: ${user.name} - ${user.address}`);
+          }
+        }
+
+        saveUsers([...users, ...usersWithCoords]);
+        
+        let message = `${usersWithCoords.length}件の利用者データをインポートしました。\n`;
+        message += `座標取得成功: ${successCount}件\n`;
+        if (failCount > 0) {
+          message += `座標取得失敗: ${failCount}件（地図に表示されません）`;
+        }
+        alert(message);
       } catch (error) {
         console.error('Import error:', error);
         alert('インポートに失敗しました。CSVファイルの形式を確認してください。');
