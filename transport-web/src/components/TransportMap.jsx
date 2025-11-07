@@ -257,16 +257,33 @@ export default function TransportMap({ facility, users, route = null, vehicleAss
               return assignment.trips.map((trip, tripIndex) => {
                 if (!trip.users || trip.users.length === 0) return null
 
+                // 利用者の座標データを確認
+                console.log(`Vehicle ${vehicle.id}, Trip ${tripIndex} users:`, trip.users.map(u => ({
+                  name: u.name,
+                  hasCoords: !!(u.lat && u.lng),
+                  lat: u.lat,
+                  lng: u.lng
+                })))
+
+                // 座標がある利用者のみをフィルタリング
+                const usersWithCoords = trip.users.filter(u => u.lat && u.lng)
+                
+                if (usersWithCoords.length === 0) {
+                  console.warn(`Vehicle ${vehicle.id}, Trip ${tripIndex}: No users with coordinates`)
+                  return null
+                }
+
                 // ルートの座標配列を作成：施設 → 利用者たち → 施設
                 const routePositions = [
                   [facilityLocation.lat, facilityLocation.lng],
-                  ...trip.users.map(user => [user.lat, user.lng]),
+                  ...usersWithCoords.map(user => [user.lat, user.lng]),
                   [facilityLocation.lat, facilityLocation.lng]
                 ]
 
                 console.log(`Rendering route for Vehicle ${vehicle.id}, Trip ${tripIndex}:`, {
                   color,
-                  usersCount: trip.users.length,
+                  totalUsers: trip.users.length,
+                  usersWithCoords: usersWithCoords.length,
                   routePositions: routePositions.length
                 })
 
@@ -284,7 +301,7 @@ export default function TransportMap({ facility, users, route = null, vehicleAss
                     />
 
                     {/* 番号付きマーカー */}
-                    {trip.users.map((user, userIndex) => (
+                    {usersWithCoords.map((user, userIndex) => (
                       <Marker
                         key={`${vehicle.id}-${tripIndex}-${user.id}`}
                         position={[user.lat, user.lng]}
