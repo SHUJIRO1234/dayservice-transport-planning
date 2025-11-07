@@ -292,12 +292,10 @@ export default function TransportMap({ facility, users, route = null, vehicleAss
                     {/* ルートライン */}
                     <Polyline
                       positions={routePositions}
-                      pathOptions={{
-                        color: color,
-                        weight: 6,
-                        opacity: 0.8,
-                        dashArray: tripIndex > 0 ? '10, 10' : undefined
-                      }}
+                      color={color}
+                      weight={6}
+                      opacity={0.8}
+                      dashArray={tripIndex > 0 ? '10, 10' : undefined}
                     />
 
                     {/* 番号付きマーカー */}
