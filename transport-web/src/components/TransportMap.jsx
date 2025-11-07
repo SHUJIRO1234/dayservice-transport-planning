@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -285,7 +285,7 @@ export default function TransportMap({ facility, users, route = null, vehicleAss
                 }
 
                 return (
-                  <div key={`${vehicle.id}-${tripIndex}`}>
+                  <React.Fragment key={`${vehicle.id}-${tripIndex}`}>
                     {/* ルートライン */}
                     {routeSegments.map((segment, segmentIndex) => (
                       <Polyline
@@ -317,7 +317,7 @@ export default function TransportMap({ facility, users, route = null, vehicleAss
                         </Popup>
                       </Marker>
                     ))}
-                  </div>
+                  </React.Fragment>
                 )
               })
             })}
