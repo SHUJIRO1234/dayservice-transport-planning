@@ -213,7 +213,7 @@ const UserManagement = ({ onClose }) => {
         const importedUsers = lines.slice(1).map((line, index) => {
           const values = line.split(',').map(v => v.replace(/"/g, '').trim());
           
-          return {
+          const user = {
             id: `import_${Date.now()}_${index}`,
             user_id: `user_import_${Date.now()}_${index}`,
             name: values[0] || '',
@@ -229,6 +229,18 @@ const UserManagement = ({ onClose }) => {
             saturday: values[10] === '○',
             sunday: values[11] === '○'
           };
+          
+          // 座標列がある場合は読み込む（14列目と15列目）
+          if (values[14] && values[15]) {
+            const lat = parseFloat(values[14]);
+            const lng = parseFloat(values[15]);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              user.lat = lat;
+              user.lng = lng;
+            }
+          }
+          
+          return user;
         }).filter(user => user.name && user.address);
 
         if (importedUsers.length === 0) {
@@ -236,41 +248,45 @@ const UserManagement = ({ onClose }) => {
           return;
         }
 
-        // 住所から座標を取得
-        alert(`${importedUsers.length}件の住所から座標を取得しています...。\nこれには数分かかる場合があります。`);
-        const usersWithCoords = [];
-        let successCount = 0;
-        let failCount = 0;
-
-        for (let i = 0; i < importedUsers.length; i++) {
-          const user = importedUsers[i];
-          console.log(`Geocoding ${i + 1}/${importedUsers.length}: ${user.address}`);
-          
-          const coords = await geocodeAddress(user.address);
-          
-          if (coords) {
-            usersWithCoords.push({
-              ...user,
-              lat: coords.lat,
-              lng: coords.lng
-            });
-            successCount++;
-          } else {
-            // 座標取得失敗でもユーザーを追加（lat/lngなし）
-            usersWithCoords.push(user);
-            failCount++;
-            console.warn(`Failed to geocode: ${user.name} - ${user.address}`);
-          }
-        }
-
-        saveUsers([...users, ...usersWithCoords]);
+        // 座標がすでに含まれているかチェック
+        const usersWithCoords = importedUsers.filter(u => u.lat && u.lng);
+        const usersWithoutCoords = importedUsers.filter(u => !u.lat || !u.lng);
         
-        let message = `${usersWithCoords.length}件の利用者データをインポートしました。\n`;
-        message += `座標取得成功: ${successCount}件\n`;
-        if (failCount > 0) {
-          message += `座標取得失敗: ${failCount}件（地図に表示されません）`;
+        // 座標がない利用者がいる場合はGeocoding実行
+        if (usersWithoutCoords.length > 0) {
+          alert(`${usersWithoutCoords.length}件の住所から座標を取得しています...。\nこれには数分かかる場合があります。`);
+          
+          let successCount = 0;
+          let failCount = 0;
+
+          for (let i = 0; i < usersWithoutCoords.length; i++) {
+            const user = usersWithoutCoords[i];
+            console.log(`Geocoding ${i + 1}/${usersWithoutCoords.length}: ${user.address}`);
+            
+            const coords = await geocodeAddress(user.address);
+            
+            if (coords) {
+              user.lat = coords.lat;
+              user.lng = coords.lng;
+              successCount++;
+            } else {
+              failCount++;
+              console.warn(`Failed to geocode: ${user.name} - ${user.address}`);
+            }
+          }
+          
+          let message = `${importedUsers.length}件の利用者データをインポートしました。\n`;
+          message += `座標取得成功: ${successCount}件\n`;
+          if (failCount > 0) {
+            message += `座標取得失敗: ${failCount}件（地図に表示されません）`;
+          }
+          alert(message);
+        } else {
+          // すべての利用者に座標が含まれている場合
+          alert(`${importedUsers.length}件の利用者データをインポートしました。\n全ての利用者に座標が含まれています。`);
         }
-        alert(message);
+
+        saveUsers([...users, ...importedUsers]);
       } catch (error) {
         console.error('Import error:', error);
         alert('インポートに失敗しました。CSVファイルの形式を確認してください。');
