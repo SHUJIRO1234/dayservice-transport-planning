@@ -1,11 +1,14 @@
 /**
  * 住所から座標（緯度・経度）を取得するユーティリティ
- * Nominatim (OpenStreetMap) APIを使用
+ * Google Maps Geocoding APIを使用
  */
+
+// Google Maps APIキー
+const GOOGLE_MAPS_API_KEY = 'AIzaSyBLKgpIgXMzQNQk46nxFUH0VzGQfLLjFxo'
 
 // リクエスト間隔を管理するためのキュー
 let lastRequestTime = 0
-const MIN_REQUEST_INTERVAL = 1000 // 1秒
+const MIN_REQUEST_INTERVAL = 100 // 0.1秒（Google Mapsは高速）
 
 /**
  * 住所から座標を取得
@@ -19,7 +22,7 @@ export async function geocodeAddress(address) {
   }
 
   try {
-    // レート制限対策：前回のリクエストから1秒以上待機
+    // レート制限対策：前回のリクエストから0.1秒以上待機
     const now = Date.now()
     const timeSinceLastRequest = now - lastRequestTime
     if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
@@ -27,18 +30,13 @@ export async function geocodeAddress(address) {
     }
     lastRequestTime = Date.now()
 
-    // Nominatim APIにリクエスト
+    // Google Maps Geocoding APIにリクエスト
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?` +
-      `format=json&` +
-      `q=${encodeURIComponent(address + ', 日本')}&` +
-      `limit=1&` +
-      `addressdetails=1`,
-      {
-        headers: {
-          'User-Agent': 'DayServiceTransportApp/1.0'
-        }
-      }
+      `https://maps.googleapis.com/maps/api/geocode/json?` +
+      `address=${encodeURIComponent(address)}&` +
+      `key=${GOOGLE_MAPS_API_KEY}&` +
+      `language=ja&` +
+      `region=jp`
     )
 
     if (!response.ok) {
@@ -47,14 +45,16 @@ export async function geocodeAddress(address) {
 
     const data = await response.json()
 
-    if (data && data.length > 0) {
-      const result = data[0]
+    if (data.status === 'OK' && data.results && data.results.length > 0) {
+      const result = data.results[0]
+      const location = result.geometry.location
+      console.log(`Geocoding success: ${address} -> ${location.lat}, ${location.lng}`)
       return {
-        lat: parseFloat(result.lat),
-        lng: parseFloat(result.lon)
+        lat: location.lat,
+        lng: location.lng
       }
     } else {
-      console.warn(`Geocoding: No results found for address: ${address}`)
+      console.warn(`Geocoding: No results found for address: ${address}`, data)
       return null
     }
   } catch (error) {
