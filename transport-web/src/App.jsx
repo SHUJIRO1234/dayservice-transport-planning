@@ -17,6 +17,7 @@ import UserManagementEnhanced from './components/UserManagementEnhanced.jsx';
 import UsageRecordManager from './components/UsageRecordManager.jsx';
 import ServiceCodeManager from './components/ServiceCodeManager.jsx';
 import VehicleManager from './components/VehicleManager.jsx';
+import FacilityManagement from './components/FacilityManagement.jsx';
 import { optimizeRoute, recalculateRoute } from './utils/routeOptimization.js'
 import { assignUsersToVehiclesWithClustering } from './utils/geographicClustering.js'
 import { weeklyData, vehicles as vehiclesData, facility as facilityData } from './weeklyData.js'
@@ -71,6 +72,7 @@ function App() {
   const [showUsageRecordManager, setShowUsageRecordManager] = useState(false)
   const [showServiceCodeManager, setShowServiceCodeManager] = useState(false)
   const [showVehicleManager, setShowVehicleManager] = useState(false)
+  const [showFacilityManagement, setShowFacilityManagement] = useState(false)
 
   const weekdays = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日']
 
@@ -945,6 +947,14 @@ function App() {
                 <Car className="w-5 h-5" />
                 車両管理
               </Button>
+              <Button 
+                onClick={() => setShowFacilityManagement(true)}
+                className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700"
+                size="lg"
+              >
+                <MapPin className="w-5 h-5" />
+                事業所管理
+              </Button>
             </div>
           </div>
 
@@ -1291,6 +1301,24 @@ function App() {
           onClose={() => setShowVehicleManager(false)}
           onVehiclesUpdate={(newVehicles) => setVehicles(newVehicles)}
         />
+      )}
+
+      {/* 事業所管理モーダル */}
+      {showFacilityManagement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+              <h2 className="text-2xl font-bold">事業所管理</h2>
+              <button
+                onClick={() => setShowFacilityManagement(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ×
+              </button>
+            </div>
+            <FacilityManagement />
+          </div>
+        </div>
       )}
     </DndContext>
   )
